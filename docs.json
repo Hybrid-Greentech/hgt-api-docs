@@ -3,9 +3,15 @@
   "theme": "mint",
   "name": "Hybrid Greentech",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#194366",
+    "light": "#FFCE00",
+    "dark": "#194366"
+  },
+  "background": {
+    "color": {
+      "light": "#FFFFFF",
+      "dark": "#142330"
+    }
   },
   "favicon": "/favicon.svg",
   "navigation": {
