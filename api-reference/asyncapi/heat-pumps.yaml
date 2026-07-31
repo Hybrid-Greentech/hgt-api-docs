@@ -1,0 +1,311 @@
+asyncapi: 3.0.0
+info:
+  title: Integration of Heat Pumps
+  version: v3.0.1
+  description: >
+    Real-time API for managing and monitoring small distributed energy resources
+    (DERs) like heat-pumps and ev-chargers. This connectivity enables:
+      - Dispatch of flexibility and control
+      - Real time telemetry collection from assets
+      - Event monitoring and alarms
+    
+    This is built on MQTT for reliable, real-time communication between the central
+    system and edge devices. Operations are marked with `[OPTIONAL]` in the case that they
+    are not required for implementation purposes.
+defaultContentType: application/json
+servers:
+  sandbox:
+    host: aggregator.gridhub.dev:8883
+    protocol: mqtts
+    description: |
+      Sandbox environment for testing and integration
+      - Simulated assets available
+      - No real grid interactions
+      - Perfect for development and testing
+    security:
+      - $ref: '#/components/securitySchemes/user-password'
+  production:
+    host: n1.link.gridhub.ai:8883
+    protocol: mqtts
+    description: |
+      Production environment for real asset operations
+      - Real-time grid interactions
+      - Strict security enforcement
+      - Production SLA guarantees
+    security:
+      - $ref: '#/components/securitySchemes/user-password'
+channels:
+  ZonalSchedules:
+    address: '{priceZone}/{customerName}/v1/schedules/zonal'
+    messages:
+      ZonalProfile.message:
+        $ref: '#/components/messages/ZonalProfileMessage'
+  ResourceRegistration:
+    address: '{priceZone}/{customerName}/v1/register'
+    messages:
+      Registration.message:
+        $ref: '#/components/messages/RegisterResourceMessage'
+  Measurements:
+    address: '{priceZone}/{customerName}/v1/measurement/{resourceId}'
+    messages:
+      HeatPumpMeasurement.message:
+        $ref: '#/components/messages/HpMeasurementMessage'
+  Events:
+    address: '{priceZone}/{customerName}/v1/event/{resourceId}'
+    messages:
+      Event.message:
+        $ref: '#/components/messages/EventsMessage'
+  Activations:
+    address: '{priceZone}/{customerName}/v1/activation/{resourceId}'
+    messages:
+      Activation.message:
+        $ref: '#/components/messages/ActivationMessage'
+operations:
+  ZonalProfileUpdate:
+    action: send
+    channel:
+      $ref: '#/channels/ZonalSchedules'
+    messages:
+      - $ref: '#/channels/ZonalSchedules/messages/ZonalProfile.message'
+  ResourceActivation:
+    action: receive
+    channel:
+      $ref: '#/channels/Activations'
+    messages:
+      - $ref: '#/channels/Activations/messages/Activation.message'
+  OnEvent:
+    action: send
+    channel:
+      $ref: '#/channels/Events'
+    messages:
+      - $ref: '#/channels/Events/messages/Event.message'
+  OnMeasurement:
+    action: send
+    channel:
+      $ref: '#/channels/Measurements'
+    messages:
+      - $ref: '#/channels/Measurements/messages/HeatPumpMeasurement.message'
+  OnResourceRegistration:
+    action: send
+    channel:
+      $ref: '#/channels/ResourceRegistration'
+    messages:
+      - $ref: '#/channels/ResourceRegistration/messages/Registration.message'
+components:
+  schemas:
+    # Components
+    resourceId:
+      type: string
+    eventId:
+      anyOf:
+        - type: string
+          format: ulid
+    ## Timestamp components that are nullable and not-nullable
+    nullableTimestamp:
+      description: |
+        Timestamp that can be nullable in the case that it is not available.
+      OneOf:
+        - type: integer
+          description: |
+            Timestamp in epoch format with units in milliseconds [ms]. 
+        - type: 'null'
+    timestamp:
+      type: integer
+      description: |
+        Timestamp in epoch format with units in milliseconds [ms].
+
+    # Enumerations
+    subscriptionStatus:
+      type: string
+      enum:
+        - 'Subscribed'
+        - 'Unsubscribed'
+    
+    priceZone:
+      type: string
+      enum:
+        - 'DK1'
+        - 'DK2'
+      
+    eventKinds:
+      type: string
+      enum:
+        - 'Status'
+        - 'Error'
+    
+    statusEvents:
+      type: string
+      description: |
+        Defines the status of the resource that allows the system to identify the availability or
+        unavailability of the resource for control.
+      enum:
+        - Unavailable
+        - Available
+        - ActivatedUp
+        - ActivatedDown
+
+    # Objects
+    HeatPumpConfigurationObject:
+      type: object
+      properties:
+        compressorRatedPowerKW:
+          type: number
+        backupHeaterRatedPowerKW:
+          type: number
+    ResourceSpecificationObject:
+      name: Resource Specification
+      title: Resource Specification
+      type: object
+      properties:
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        subscriptionStatus:
+          $ref: '#/components/schemas/subscriptionStatus'
+        priceZone:
+          $ref: '#/components/schemas/priceZone'
+        configuration:
+          anyOf:
+            - $ref: '#/components/schemas/HeatPumpConfigurationObject'
+
+    # Full Messages
+    ActivationObject:
+      type: object
+      properties:
+        activation:
+          type: string
+          enum:
+            - ActivationUp
+            - ActivationDown
+            - Release
+        endsAt:
+          $ref: '#/components/schemas/nullableTimestamp'
+
+    ActivationMessage:
+      type: object
+      properties:
+        eventId:
+          $ref: '#/components/schemas/eventId'
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        timestamp:
+          $ref: '#/components/schemas/timestamp'
+        payload:
+          $ref: '#/components/schemas/ActivationObject'
+
+    EventObject:
+      type: object
+      properties:
+        resourceTimestamp:
+          $ref: '#/components/schemas/nullableTimestamp'
+        serverTimestamp:
+          $ref: '#/components/schemas/timestamp'
+        status:
+          $ref: '#/components/schemas/statusEvents'
+
+    ZonalProfileObject:
+      type: object
+      properties:
+        time_start:
+          $ref: '#/components/schemas/timestamp'
+        time_end:
+          $ref: '#/components/schemas/timestamp'
+        is_turn_off_heating:
+          type: boolean
+
+    ZonalScheduleProfileMessage:
+      type: object
+      properties:
+        eventId:
+          $ref: '#/components/schemas/eventId'
+        data:
+          type: array
+          description: |
+            Expect the list of profiles for a given day for the hours of the day. This should handle DST by providing two or skip the right hours of the day while sending the timestamps.
+          items:
+            $ref: '#/components/schemas/ZonalProfileObject'
+
+    HeatPumpEventsMessage:
+      type: object
+      properties:
+        eventId:
+          $ref: '#/components/schemas/eventId'
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        eventKind:
+          $ref: '#/components/schemas/eventKinds'
+        payload:
+          $ref: '#/components/schemas/EventObject'
+    HeatPumpMeasurementObject:
+      type: object
+      properties:
+        resourceTimestamp:
+          $ref: '#/components/schemas/nullableTimestamp'
+        serverTimestamp:
+          $ref: '#/components/schemas/timestamp'
+        availableUpKw:
+          type: number
+        availableDownKw:
+          type: number
+    HeatPumpMeasurementMessage:
+      type: object
+      properties:
+        eventId:
+          $ref: '#/components/schemas/eventId'
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        payload:
+          $ref: '#/components/schemas/HeatPumpMeasurementObject'
+    RegisterMessage:
+      type: object
+      properties:
+        eventId:
+          $ref: '#/components/schemas/eventId'
+        timestamp:
+          $ref: '#/components/schemas/timestamp'
+        payload:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceSpecificationObject'
+  messages:
+    ActivationMessage:
+      title: Activation of a single resource in the system
+      description: Message for dynamically activating a resource within the namespace
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ActivationMessage'
+    RegisterResourceMessage:
+      title: Register a single resource in the system
+      description: Message for dynamically registering a resource within the namespace of `PriceZone` and `CustomerName`
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/RegisterMessage'
+    HpMeasurementMessage:
+      title: "Measurement Message for Heatpumps in the system"
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/HeatPumpMeasurementMessage'
+    EventsMessage:
+      title: Events in the system
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/HeatPumpEventsMessage'
+    ZonalProfileMessage:
+      title: Zonal Scheduling Profile
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ZonalScheduleProfileMessage'
+  parameters:
+    priceZone:
+      description: |
+        Grid area or Price Zone in which the resource is operational
+    customerName: |
+        Operator or customer namespace
+    resourceId: |
+        Variable dictating the resource for which the messages are handled
+  securitySchemes:
+    user-password:
+      type: userPassword
+      description: |
+        The credentials are generated during asset registration and must
+        be securely stored. Connection attempts with invalid credentials are logged and 
+        may trigger alerts.

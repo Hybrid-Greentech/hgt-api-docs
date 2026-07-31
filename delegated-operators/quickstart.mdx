@@ -1,0 +1,257 @@
+---
+title: Delegated Control Quickstart
+description: Get a delegated operator connected to the HGT platform in under 30 minutes.
+---
+
+## Overview
+
+Delegated control lets a third-party system operate grid-connected assets (batteries, solar installations, and other DERs) on behalf of the HGT platform. The integration has two independent layers:
+
+| Layer | Protocol | Purpose |
+|-------|----------|---------|
+| **REST API** | HTTPS (JSON) | Authentication, asset/site discovery, schedule polling |
+| **Real-time API** | MQTTS | Task dispatch, activations, telemetry, status reporting |
+
+This guide gets you from zero to operational. For complete message schemas, endpoint parameters, and the full topic reference, see the [Operational Flow](./operational-flow) page.
+
+---
+
+## Step 1 — Authenticate
+
+Call the OAuth2 token endpoint with your M2M client credentials.
+
+```bash
+curl -X POST https://operations.gridhub.dev/v2/auth/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET" \
+  -d "grant_type=client_credentials" \
+  -d "scope=assets:read sites:read operations:read"
+```
+
+```json title="Token response"
+{
+  "access_token": "eyJhbGc...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "assets:read sites:read operations:read"
+}
+```
+
+Pass the token as a bearer header on all subsequent REST calls:
+
+```
+Authorization: Bearer <access_token>
+```
+
+Call `GET /v2/me` to verify your scopes before proceeding.
+
+<Warning>
+  REST bearer tokens and MQTT credentials are completely independent. A valid REST token does not authorise MQTT connections.
+</Warning>
+
+---
+
+## Step 2 — Discover your assets and sites
+
+Retrieve the assets and sites registered to your account.
+
+```bash
+# List all assets
+GET /v2/assets
+
+# List all sites
+GET /v2/sites
+
+# List meters for a specific site
+GET /v2/sites/{site_id}/meters
+```
+
+Each asset includes an active specification snapshot. The `specifications` field is an opaque JSON document — its shape depends on `kind` and `schema_version`. Always version-gate your parsing on `schema_version` and tolerate unknown keys.
+
+---
+
+## Step 2.5 — Check availability (Optional)
+
+Before an activation window, query what each asset can deliver.
+
+```bash
+GET /v2/availability?assetId={uuid}&from=2025-03-15T00:00:00Z&to=2025-03-16T00:00:00Z
+```
+
+Each slot in the response includes:
+
+- `upwardCapacity` / `downwardCapacity` — dispatchable power per direction (kW)
+- `flexibleEnergy` / `mustRunEnergy` — energy commitments for the slot (kWh)
+- `products` — market services the asset is available for, e.g. `["fcrd"]`
+
+The query window uses a half-open interval (`from <= fromTime < to`) and is capped at 7 days.
+
+---
+
+## Step 3 — Connect edge devices via MQTT
+
+MQTT credentials are per-customer and are generated during the initial asset registration. Connect each edge device to the broker and subscribe to its task and activation topics.
+
+| Environment | Host                     | Port   |
+| ----------- | ------------------------ | ------ |
+| Sandbox     | `aggregator.gridhub.dev` | `8883` |
+| Production  | `n1.link.gridhub.ai`     | `8883` |
+
+Every topic follows this structure:
+
+```
+{priceZone}/{customerName}/{channel}/{assetId}
+```
+
+Subscribe to these channels per asset immediately after connecting:
+
+```
+{priceZone}/{customerName}/tasks/{assetId}
+{priceZone}/{customerName}/activation/{assetId}
+```
+
+---
+
+## Step 4 — Handle tasks
+
+The platform publishes task assignments to the `tasks` channel. A task tells the asset what market service to deliver, in what direction, at what magnitude, and for how long.
+
+```json title="Task message"
+{
+  "sessionId": "uuid",
+  "taskId": "uuid",
+  "startTime": 1698422400000,
+  "endTime": 1698426000000,
+  "service": {
+    "priceZone": "DK1",
+    "serviceType": "afrr",
+    "serviceEnvironment": "production"
+  },
+  "quantity": {
+    "chargePower": 2000,
+    "dischargePower": 2000,
+    "unit": "kW"
+  }
+}
+```
+
+On receipt:
+
+1. Validate the parameters against asset constraints
+2. Acknowledge receipt within **30 seconds** by publishing a `STARTED` task event
+3. Begin delivering the service at `startTime`
+
+---
+
+## Step 5 — Stream telemetry
+
+Continuously publish measurements from each online asset. The required rate depends on the asset class and the measurement type. See [Data Standards](/delegated-operators/data-standards).
+
+**Topic:** `{priceZone}/{customerName}/measurements/{assetId}`
+
+```json title="Measurement message"
+{
+  "assetId": "uuid",
+  "eventId": "01ABCDEFGHJKMNPQRSTVWXYZ01",
+  "measurementType": "powerAc",
+  "payload": {
+    "assetTimestamp": 1698422400000,
+    "serverTimestamp": 1698422400100,
+    "value": 1480.5,
+    "unit": "kW"
+  }
+}
+```
+
+Publish every applicable measurement type: `powerAc`, `frequency`, `stateOfCharge`, and `afrrBaseline` (when the asset is enrolled in aFRR). `powerDc` is optional. The sample interval is 100 ms for BESS active power and grid frequency, 1 s for PV active power and the aFRR baseline, and 5 s for state of charge. Delivery lag (`serverTimestamp − assetTimestamp`) must be 250 ms or less. See [Data Standards](/delegated-operators/data-standards) for the full requirements.
+
+***
+
+## Step 5.5 — aFRR Baseline
+
+When an asset is enrolled in aFRR, it is mandatory to report the baseline, which consists of all combined setpoints excluding the aFRR activation.
+
+The `afrrBaseline` is calculated as follows:
+
+```typescript
+// afrrBaseline = Sum(setpoints in other active markets)
+
+afrrBaseline = FCRD + FCRN + FFR + mFRR + Wholesale
+```
+
+<Warning>
+  It is very important that the setpoint calculated for aFRR is not included in this baseline, as the baseline is used to calculate the actual aFRR delivery.
+</Warning>
+
+
+---
+
+## Step 6 — Respond to activations
+
+During an active task window, the platform pushes real-time power setpoints. Apply them immediately. The platform must receive a measurement showing the response within 1 second for a BESS and 5 seconds for PV. See [Data Standards](/delegated-operators/data-standards).
+
+Activations are delivered at QoS 1, so a reconnection can deliver a setpoint that is no longer current. Discard an activation that is older on receipt than the bound for the asset class, or that a newer activation for the same task has superseded.
+
+**Topic:** `{priceZone}/{customerName}/activation/{assetId}`
+
+```json title="Activation message"
+{
+  "eventId": "uuid",
+  "timestamp": 1698422400000,
+  "task": "uuid",
+  "powerkW": 1500.0
+}
+```
+
+The `task` field ties the activation to its parent task. Activations may arrive at any point inside `[startTime, endTime]` from the task.
+
+---
+
+## Step 7 — Report task lifecycle
+
+Publish task events to report progress.
+
+**Topic:** `{priceZone}/{customerName}/tasks/events/{assetId}`
+
+```json title="Task event"
+{
+  "assetId": "uuid",
+  "eventId": "01ABCDEFGHJKMNPQRSTVWXYZ02",
+  "payload": {
+    "assetTimestamp": 1698422400000,
+    "serverTimestamp": 1698422400100,
+    "taskId": "uuid",
+    "taskStatus": "COMPLETED"
+  }
+}
+```
+
+| Status | When to send |
+|--------|-------------|
+| `STARTED` | Within 30 seconds of receiving a task |
+| `COMPLETED` | When the task window ends successfully |
+| `FAILED` | When the asset could not deliver the service |
+| `INVALID` | When the task parameters are inconsistent or unrecognisable |
+| `UNAUTHORISED` | When the asset is not authorised for the requested service |
+
+---
+
+## Step 8 — Poll planned schedules
+
+Poll `GET /v2/dispatch/tasks` regularly (typically once per hour) to keep your system aligned with the platform's planned schedule.
+
+Use the `commitmentId` field to detect changes without re-reading unchanged tasks:
+
+- Same `(taskId, commitmentId)` → no change
+- Same `taskId`, new `commitmentId` → a new trade was made, update your schedule
+
+---
+
+## The three concurrent loops
+
+Once connected, your system runs three loops in parallel:
+
+![](https://mermaid.ink/img/pako:eNqNksGO0zAQhl9l5BNIaRsnzTbNYaUFKuBQpZScUC7eZEisJnawnUK36oqH4Al5EibNFhAFCR8mtueffz7HPrJCl8gSZvFTj6rAV1JURrS5AhqdME4WshPKQQrCQtqhEU6b6_R2SG9X7zO427y9Tq-H9PpdlsELo3dIBqPGYOHAVPfPgiDyIJgPIYyfj0mlHYLeo4HU2yaQCbuDTjeNVBV8__oNat2b5jBqG607WJH2AI_8nBn3h5FObm-p_vUqg9k-mJXSdsIV9cyRof0l205IlyawaYRSWIItaiz7BkcFqvK3yZ_0oT_QcwoR_wv9muixwRYd8Q3oHN48XIFzsFjoS58LOdVu-vtG2hpaFLY3ZKOc_R-qaKAKb4bwD6q7wsm9cFIre-bCPXlPSiPpOxasn36K_kw1Fl2npXJXXuTUdc0BnKaLJhXItsVSCoeXCzoDMo9VRpYscaZHj7VoWjEs2XEQ5czVdLicJTQthdnlLFcnqqEn9EHr9lJmdF_VLPkoGkurviupzdO7_Smhdmhe6l45lvDwbMGSI_vCktAPpstFPL_h8ZIHccQ9dmBJtJzyeBFF0dyfxzH3FyePPZx7-lPaP_0AsM_8HQ?type=png)
+
+For full details on all REST endpoints, MQTT message schemas, market products, and dispatch directions, see the [Operational Flow](./operational-flow) reference.

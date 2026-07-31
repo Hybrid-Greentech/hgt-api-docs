@@ -1,0 +1,136 @@
+---
+title: API Versioning
+description: How the HGT APIs are versioned and how to prepare for future versions.
+---
+
+## Overview
+
+The HGT platform exposes two protocol layers, each with its own versioning model:
+
+| Layer | Protocol | Version carrier |
+|-------|----------|----------------|
+| REST API | HTTPS | URL path prefix (`/v2/...`) |
+| Real-time API | MQTTS (AsyncAPI) | Topic path segment (`/v1/...`) |
+
+Within a given version, the schemas themselves carry a fine-grained `schema_version` integer for asset specification objects. These three mechanisms work independently and can advance at different rates.
+
+---
+
+## REST API versioning
+
+REST endpoints are versioned via a path prefix. The current version is **v2**.
+
+```
+https://api.gridhub.dev/v2/auth/token
+https://api.gridhub.dev/v2/assets
+https://api.gridhub.dev/v2/sites
+https://api.gridhub.dev/v2/dispatch/tasks
+```
+
+A future version would introduce new endpoints under `/v3/`, leaving `/v2/` routes intact and operational throughout the deprecation window.
+
+### Rules
+
+- **Non-breaking** changes (new optional fields, new query parameters, new endpoints) are added to the current version without a version bump.
+- **Breaking** changes (removed fields, changed response shapes, renamed endpoints) are only made under a new major version.
+- Both versions run in parallel during the deprecation period. The `Deprecation` and `Sunset` response headers signal when a version will be withdrawn.
+
+---
+
+## MQTT topic versioning
+
+MQTT topic paths embed a version segment. The current version is **v1**.
+
+```
+{priceZone}/{customerName}/v1/register
+{priceZone}/{customerName}/v1/activation/{resourceId}
+{priceZone}/{customerName}/v1/power/{resourceId}
+```
+
+A future version would introduce new topic paths under `v2/`:
+
+```
+{priceZone}/{customerName}/v2/register
+{priceZone}/{customerName}/v2/activation/{resourceId}
+```
+
+During migration, devices can subscribe to both `v1` and `v2` topics simultaneously. The platform will publish activations on the version(s) a device has registered against.
+
+### Message-level versioning
+
+Within a single topic version, individual message schemas may evolve. The EV charger activation channel demonstrates this: the `Activations` topic carries both a **v1** and a **v2** activation message format, differentiated by the presence of `resource_id` in the payload.
+
+```
+v1 activation: { event_id, activation, timestamp, power_limit_kw, ends_at }
+v2 activation: { event_id, resource_id, activation, timestamp, power_limit_kw, ends_at }
+```
+
+When the platform emits an activation, it indicates the message version in the AsyncAPI `messageId` binding. Clients should inspect the payload for the presence of `resource_id` to detect message version at runtime and handle both forms defensively.
+
+---
+
+## Asset specification versioning
+
+The `specifications` field on assets returned by `GET /v2/assets` is an opaque JSON document. Its shape is governed by the asset `kind` and a `schema_version` integer.
+
+```json title="Asset with schema_version"
+{
+  "kind": "bess",
+  "schema_version": 2,
+  "specification": {
+    "power": { "type": "static", "unit": "kW", "rated": 2000, "usable": 2000 }
+  }
+}
+```
+
+**Always gate your parsing on `schema_version` and tolerate unknown keys.** The specification schema for a given `(kind, schema_version)` pair is frozen. New fields may be added to future schema versions without changing the `kind`.
+
+---
+
+## Expanding to a new version
+
+When a new version is introduced, the following artifacts are updated:
+
+<Steps>
+  ### New AsyncAPI spec
+
+  A new file is added under `api-reference/asyncapi/` (e.g., `ev-chargers-v2.yaml`). The existing v1 spec is retained and continues to be published.
+
+  ### Updated docs.json navigation
+
+  A new group is added under the relevant tab, linking both versions in the API reference:
+
+  ```json title="docs.json"
+  {
+    "group": "EV Chargers v1",
+    "asyncapi": "/api-reference/asyncapi/ev-chargers.yaml"
+  },
+  {
+    "group": "EV Chargers v2",
+    "asyncapi": "/api-reference/asyncapi/ev-chargers-v2.yaml"
+  }
+  ```
+
+  ### Changelog entry
+
+  A changelog entry is published documenting what changed, the migration path, and the sunset date for the previous version.
+
+  ### Deprecation window
+
+  The old version remains fully operational. The platform publishes on both versions until the sunset date.
+</Steps>
+
+---
+
+## Current API versions
+
+| API | Spec version | Topic prefix | Status |
+|-----|-------------|-------------|--------|
+| EV Chargers (OCPP) | 3.0.2 | `/v1/` | Current |
+| Heat Pumps | 3.0.1 | `/v1/` | Current |
+| Delegated Operators | 3.0.1 | `tasks/`, `activation/`, `measurements/` | Current |
+| REST (Delegated Operators) | — | `/v2/` | Current |
+
+<Note>
+  The AsyncAPI `info.version` (e.g., `3.0.2`) tracks the spec document version, not the topic path version. These are independent. A spec can be updated to `3.0.3` while the topic path remains `/v1/`.
+</Note>

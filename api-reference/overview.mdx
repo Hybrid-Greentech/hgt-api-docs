@@ -1,0 +1,22 @@
+---
+title: API reference
+description: The three real-time integration surfaces exposed by the HGT platform.
+---
+
+Hybrid Greentech's platform is reached over MQTT-based, event-driven APIs — one per integration surface. Each is specified with AsyncAPI and rendered below with the full channel, message, and schema reference.
+
+<CardGroup cols={3}>
+  <Card title="Delegated Operators" icon="plug" href="/delegated-operators/welcome">
+    Third-party dispatch of grid assets: tasks, activations, and telemetry over MQTT, plus a REST layer for discovery and monitoring.
+  </Card>
+  <Card title="EV Chargers" icon="car-side" href="/ev-chargers/quickstart">
+    OCPP-compatible EV charge point registration, telemetry, and activation over MQTT.
+  </Card>
+  <Card title="Heat Pumps" icon="temperature-half" href="/heat-pumps/quickstart">
+    Directional availability and activation for heat pump DERs over MQTT.
+  </Card>
+</CardGroup>
+
+For direct hardware integration (Modbus TCP or IEC104) rather than cloud MQTT/REST, see [OEM Integration](/controller/overview).
+
+See [API Versioning](/api-versioning) for how these specs and the REST layer evolve over time.

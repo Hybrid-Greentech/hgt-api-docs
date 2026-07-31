@@ -1,0 +1,422 @@
+asyncapi: 3.0.0
+info:
+  title: Delegated Operator - Management and Monitoring API
+  version: v3.0.1
+  description: >
+    Real-time API for managing and monitoring distributed energy resources
+    (DERs) including batteries, solar installations, and other grid-connected
+    assets. 
+
+    This API enables:
+    - Dispatch of flexibility services and grid balancing tasks
+    - Real-time telemetry collection from assets
+
+    The API follows a pub/sub pattern using MQTT for reliable, real-time
+    communication between the central system and edge devices.
+defaultContentType: application/json
+servers:
+  sandbox:
+    host: mqtt.example.com:8883
+    protocol: mqtt
+    description: |
+      Sandbox environment for testing and integration
+      - Simulated assets available
+      - No real grid interactions
+      - Perfect for development and testing
+    security:
+      - $ref: '#/components/securitySchemes/user-password'
+  production:
+    host: mqtt.example.com:8883
+    protocol: mqtt
+    description: |
+      Production environment for real asset operations
+      - Real-time grid interactions
+      - Strict security enforcement
+      - Production SLA guarantees
+    security:
+      - $ref: '#/components/securitySchemes/user-password'
+channels:
+  Activations:
+    address: '{priceZone}/{customerName}/activation/{assetId}'
+    messages:
+      onActivation.message:
+        $ref: '#/components/messages/activationMessage'
+  Events:
+    address: '{priceZone}/{customerName}/events/{assetId}'
+    messages:
+      onEvent.message:
+        $ref: '#/components/messages/eventMessage'
+  AssetMeasurements:
+    address: '{priceZone}/{customerName}/measurements/{assetId}'
+    messages:
+      onMeasurement.message:
+        $ref: '#/components/messages/measurementMessage'
+  TaskEvents:
+    address: '{priceZone}/{customerName}/tasks/events/{assetId}'
+    messages:
+      onTaskEvent.message:
+        $ref: '#/components/messages/onTaskEventMessage'
+  Tasks:
+    address: '{priceZone}/{customerName}/tasks/{assetId}'
+    messages:
+      onDispatch.message:
+        $ref: '#/components/messages/taskMessage'
+    description: |
+      Channel for dispatching control signals and tasks to assets.
+      The hierarchical structure allows for:
+      - Geographic grouping via priceZone
+      - Multi-tenancy via customerName
+      - Individual asset targeting via assetId
+    parameters:
+      priceZone:
+        $ref: '#/components/parameters/priceZone'
+      customerName:
+        $ref: '#/components/parameters/customerName'
+      assetId:
+        $ref: '#/components/parameters/assetId'
+operations:
+  onActivation:
+    action: receive
+    channel:
+      $ref: '#/channels/Activations'
+    messages:
+      - $ref: '#/channels/Activations/messages/onActivation.message'
+    summary: Activation Message
+    description: |
+      Activation messages sent with a power value that indicates a power activation that needs to take place for a specific market
+  onEvent:
+    action: send
+    channel:
+      $ref: '#/channels/Events'
+    messages:
+      - $ref: '#/channels/Events/messages/onEvent.message'
+    summary: Measurement Message
+    description: |
+      Send measurement messages from measurement-devices, tools and other
+      devices on location
+  onMeasurement:
+    action: send
+    channel:
+      $ref: '#/channels/AssetMeasurements'
+    messages:
+      - $ref: '#/channels/AssetMeasurements/messages/onMeasurement.message'
+    summary: Measurement Message
+    description: |
+      Send measurement messages from measurement-devices, tools and other
+      devices on location
+  onTaskEvent:
+    action: send
+    channel:
+      $ref: '#/channels/TaskEvents'
+    messages:
+      - $ref: '#/channels/TaskEvents/messages/onTaskEvent.message'
+  onDispatch:
+    action: receive
+    channel:
+      $ref: '#/channels/Tasks'
+    messages:
+      - $ref: '#/channels/Tasks/messages/onDispatch.message'
+    summary: Task Dispatch
+    description: |
+      Receive and process incoming control tasks and setpoints.
+      Implementation must:
+      - Validate task parameters
+      - Check asset availability
+      - Respect asset constraints
+      - Acknowledge receipt within 30 seconds
+components:
+  schemas:
+    taskStatus:
+      type: string
+      enum:
+        - STARTED
+        - FAILED
+        - INVALID
+        - UNAUTHORISED
+        - COMPLETED
+    eventDomain:
+      type: string
+      enum:
+        - NETWORKING
+        - ASSET
+        - NOTAVAILABLE
+      default: NOTAVAILABLE
+    severity:
+      type: string
+      enum:
+        - INFO
+        - LOW
+        - HIGH
+        - CRITICAL
+    measurementType:
+      type: string
+      description: |
+        Describes the measurement types that are allowed when sending the data. Most of them are straightforward
+        - `aFRRBaseline` is the sum of all setpoints except the aFRR setpoint. This is all the actions the battery is doing except aFRR. This can be in either direction. This will be used to compute the delivered aFRR energy using the aFRR Baseline.
+        - `powerSocManagement` is deprecated. The platform ignores the value. The enum value remains so that existing publishers do not fail validation. Do not implement it in new integrations.
+
+        Required sample intervals differ by measurement type and asset class. See the Data Standards page in the Delegated Operators documentation.
+
+      enum:
+        - frequency
+        - powerAc
+        - powerDc
+        - afrrBaseline
+        - powerSocManagement
+        - stateOfCharge
+    taskType:
+      type: string
+      enum:
+        - afrr
+        - fcrd
+        - fcrn
+        - dayahead
+    units:
+      type: string
+      enum:
+        - kW
+        - Hz
+        - '%'
+        - W
+    servicePayload:
+      type: object
+      properties:
+        priceZone:
+          type: string
+        serviceType:
+          type: string
+        serviceEnvironment:
+          type: string
+      required:
+        - priceZone
+        - serviceType
+        - serviceEnvironment
+    quantityPayload:
+      type: object
+      properties:
+        chargePower:
+          type: integer
+        dischargePower:
+          type: integer
+        unit:
+          $ref: '#/components/schemas/units'
+      required:
+        - chargePower
+        - dischargePower
+        - unit
+    taskStatusPayload:
+      type: object
+      properties:
+        assetTimestamp:
+          anyOf:
+            - type: integer
+            - type: 'null'
+        serverTimestamp:
+          type: integer
+        taskId:
+          type: string
+          format: uuid
+        taskStatus:
+          $ref: '#/components/schemas/taskStatus'
+    taskEventPayload:
+      type: object
+      properties:
+        assetId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: ulid
+          description: |
+            ULID formatted string
+        payload:
+          $ref: '#/components/schemas/taskStatusPayload'
+    eventContextObject:
+      type: object
+      properties:
+        code:
+          type: string
+        description:
+          type: string
+    eventPayload:
+      type: object
+      properties:
+        assetTimestamp:
+          anyOf:
+            - type: integer
+            - type: 'null'
+        serverTimestamp:
+          type: integer
+        severity:
+          $ref: '#/components/schemas/severity'
+        domain:
+          $ref: '#/components/schemas/eventDomain'
+        eventContext:
+          $ref: '#/components/schemas/eventContextObject'
+    eventMessagePayload:
+      type: object
+      properties:
+        assetId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: ulid
+          description: |
+            ULID formatted string
+        payload:
+          $ref: '#/components/schemas/eventPayload'
+    activationPayload:
+      type: object
+      properties:
+        eventId:
+          type: string
+        timestamp:
+          type: integer
+        task:
+          type: string
+          format: uuid
+        powerkW:
+          type: number
+          description: |
+            power measurement that corresponds to a specific activation
+      required:
+        - timestamp
+        - task
+    measurementPayload:
+      type: object
+      properties:
+        assetTimestamp:
+          anyOf:
+            - type: integer
+            - type: 'null'
+        serverTimestamp:
+          type: integer
+        value:
+          type:
+            - number
+            - string
+            - boolean
+          description: |
+            Actual Measurement Value depends on measurement type:
+              - number for power & frequency
+              - string for state indicators
+              - boolean for binary states
+        unit:
+          $ref: '#/components/schemas/units'
+      required:
+        - serverTimestamp
+        - value
+        - unit
+    measurementMessagePayload:
+      type: object
+      properties:
+        assetId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: ulid
+          description: |
+            ULID formatted string
+        measurementType:
+          $ref: '#/components/schemas/measurementType'
+        payload:
+          $ref: '#/components/schemas/measurementPayload'
+      required:
+        - assetId
+        - eventId
+        - measurementType
+    taskMessagePayload:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        startTime:
+          type: integer
+          description: |
+            Unix timestamp in [ms] since epoch and must be 
+            synchronised with a reliable time source.
+            Example: 1698422400000 (represents 2023-10-27T12:00:00Z)
+        endTime:
+          type: integer
+          description: |
+            Unix timestamp in [ms] since epoch and must be 
+            synchronised with a reliable time source.
+            Example: 1698422400000 (represents 2023-10-27T12:00:00Z)
+        service:
+          $ref: '#/components/schemas/servicePayload'
+        quantity:
+          $ref: '#/components/schemas/quantityPayload'
+  messages:
+    activationMessage:
+      name: Activation Message
+      title: Activation Message
+      description: Message containing data to activate the asset in a particular market
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/activationPayload'
+    onTaskEventMessage:
+      name: On Task Event Message
+      title: Task Event Message
+      description: Messages in response to a task event
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/taskEventPayload'
+    eventMessage:
+      name: Event Message
+      title: Event Messages
+      description: Messages containing events on site
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/eventMessagePayload'
+    measurementMessage:
+      name: Measurement Message
+      title: On site measurement message
+      description: Message containing measurements made on site
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/measurementMessagePayload'
+    taskMessage:
+      name: taskMessage
+      title: Task Assignment Message
+      description: Message containing task assignments for assets
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/taskMessagePayload'
+  parameters:
+    priceZone:
+      description: |
+        Geographic market area identifier.
+        Used for:
+        - Market segregation
+        - Pricing boundaries
+        - Regulatory compliance
+        Example: "DK1", "SE3", "NO2"
+    customerName:
+      description: |
+        Customer namespace identifier.
+        - Must be unique within price zone
+        - Used for multi-tenant isolation
+        - Part of access control
+        Example: "customer-abc-123"
+    assetId:
+      description: |
+        Unique asset identifier (UUID format)
+        Represents:
+        - Individual DER units
+        - Measurement points
+        - Controllable resources
+        Must be registered in system before use
+  securitySchemes:
+    user-password:
+      type: userPassword
+      description: |
+        Credentials are generated during asset
+        registration and must be securely stored.
+        Connection attempts with invalid credentials
+        will be logged and may trigger alerts.

@@ -1,0 +1,69 @@
+---
+title: Changelog
+description: API changes, new features, and deprecation notices across all HGT platform APIs.
+---
+
+This changelog tracks notable changes to the HGT platform APIs — new features, schema changes, deprecations, and breaking changes.
+
+Entries are tagged by system.
+
+**Tags used:**
+
+| Tag | Meaning |
+|-----|---------|
+| `ev-chargers` | EV Charger (OCPP) MQTT API |
+| `heat-pumps` | Heat Pump MQTT API |
+| `delegated-operators` | Delegated Operators MQTT API |
+| `rest-api` | Delegated Operators REST API |
+| `breaking-change` | Requires changes to your integration |
+| `deprecation` | Feature or version will be removed — migration path provided |
+| `feature` | New capability added |
+| `fix` | Correction to existing behaviour |
+
+<Update label="July 30, 2026" tags={["delegated-operators", "fix", "deprecation"]}>
+  ## Data Standards page, telemetry rate fixes
+
+  The new [Data Standards](/delegated-operators/data-standards) page defines the telemetry rates and control-response requirements for the Delegated Operators integration. Where another page or diagram states a different rate, use the values on the Data Standards page.
+
+  No schema, topic, or endpoint has changed. If your integration already meets these rates, no action is required.
+</Update>
+
+<Update label="July 15, 2026" tags={["ev-chargers", "heat-pumps", "delegated-operators", "rest-api"]}>
+  ## Initial API documentation release
+
+  This release publishes the first version of the HGT platform developer documentation, covering all three integration surfaces.
+
+  ### EV Chargers — OCPP MQTT API (v3.0.2)
+
+  - **Registration:** Single and bulk resource registration via `v1/register` and `v1/bulk/register`
+  - **Measurements:** Power telemetry via `v1/power/{resourceId}`
+  - **Status events:** OCPP status reporting via `v1/status/{resourceId}`
+  - **Activations:** v1 and v2 activation message formats on `v1/activation/{resourceId}`; v2 adds `resource_id` to the payload
+  - **Bulk activations:** Multi-resource power limit dispatch via `v1/bulk/activation`
+  - **Acknowledgements:** Required per activation; acceptance codes cover all rejection scenarios
+  - **Updates:** Partial resource modification via `v1/update/{resourceId}`
+
+  ### Heat Pumps — MQTT API (v3.0.1)
+
+  - **Registration:** Resource registration with rated compressor and backup heater power
+  - **Measurements:** Availability telemetry (upward and downward kW) via `v1/measurement/{resourceId}`
+  - **Status events:** Directional status reporting (`Available`, `ActivatedUp`, `ActivatedDown`, `Unavailable`)
+  - **Activations:** Directional commands (`ActivationUp`, `ActivationDown`, `Release`) via `v1/activation/{resourceId}`
+  - **Zonal schedules:** Optional daily availability profiles via `v1/schedules/zonal`
+
+  ### Delegated Operators — MQTT API (v3.0.1)
+
+  - **Tasks:** Market task dispatch over `tasks/{assetId}` with 30-second acknowledgement window
+  - **Activations:** Real-time power setpoints over `activation/{assetId}`
+  - **Measurements:** 1 Hz telemetry streaming over `measurements/{assetId}` — power, SoC, frequency, aFRR baseline
+  - **Task events:** Lifecycle reporting (`STARTED`, `COMPLETED`, `FAILED`, `INVALID`, `UNAUTHORISED`)
+  - **Events:** Operational event reporting with severity levels and domain classification
+
+  ### REST API — Delegated Operators (v2)
+
+  - **Authentication:** OAuth2 `client_credentials` grant at `POST /v2/auth/token`
+  - **Assets:** `GET /v2/assets` with active specification snapshots per asset
+  - **Sites and meters:** `GET /v2/sites` and `GET /v2/sites/{site_id}/meters`
+  - **Availability:** `GET /v2/availability` — upward/downward capacity and product availability per time slot
+  - **Dispatch tasks:** `GET /v2/dispatch/tasks` — planned schedule with `commitmentId` change detection
+</Update>

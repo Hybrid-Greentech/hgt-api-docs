@@ -1,0 +1,52 @@
+---
+title: Getting Started
+---
+
+Delegated Operators is the concept of a third party system that controls grid-connected assets (batteries, solar-panels, etc.) on behalf of a central system. This specifies the standardised way to receive commands and report back. 
+
+This setup consists of two parts:
+
+1. **REST API** for setup, configuration, and querying.  This is where an operator authenticates via OAuth2 (client_credentials grant), then reads their registered assets, sites, meters, availability schedules, and planned dispatch tasks. It's standard request/response over HTTPS with JWT bearer tokens. 
+2. **MQTT API** is for real-time communications & streaming.  Once an asset is registered and prequalified, all time-critical communication including centrally dispatched setpoints, streaming telemetry, and reporting status are handled over MQTT pub/sub.
+
+This system is designed to operate for both these situations:
+
+A. Cloud to Cloud setup where your cloud environment connects to our MQTT & REST API and isolates the last-mile communication
+B. Cloud to Site setup where your site connects individually to our MQTT & REST API and performs the operations directly
+
+---
+
+## Integration lifecycle
+
+A typical integration follows this sequence:
+
+<Steps>
+  ### Authenticate
+  Call `POST /v2/auth/token` with your M2M client credentials. Optionally call `GET /v2/me` to verify scopes.
+
+  ### Discover assets and sites
+  Call `GET /v2/assets` and `GET /v2/sites` to retrieve your registered resources and their specifications. Use `GET /v2/sites/{site_id}/meters` for metering topology.
+
+  ### Check availability
+  Call `GET /v2/availability` to see what each asset can deliver in upcoming time slots.
+
+  ### Connect edge devices via MQTT
+  Using per-asset credentials, connect your edge devices to the MQTT broker and subscribe to the task and activation topics for each asset.
+
+  ### Receive and execute tasks
+  The platform dispatches tasks over MQTT. Validate, acknowledge within 30 seconds, and send a `STARTED` task event.
+
+  ### Respond to activations
+  During active tasks, receive real-time power setpoints via the activation channel. Ramp the asset accordingly.
+
+  ### Stream telemetry
+  Continuously publish measurements (power, frequency, SoC, aFRR baseline) on the measurements channel.
+
+  ### Report completion
+  When a task window ends, send a `COMPLETED` (or `FAILED` / `INVALID`) task event. Report any operational issues on the events channel.
+
+  ### Monitor via REST
+  Use `GET /v2/dispatch/tasks` to poll planned schedules and detect changes via `commitmentId`.
+</Steps>
+
+---

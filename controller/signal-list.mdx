@@ -1,0 +1,90 @@
+---
+title: Signal List
+description: Preferred Modbus TCP and IEC104 signal addresses HGT uses to control PPC and OEM hardware directly.
+---
+
+## Purpose
+
+This page describes how Hybrid Greentech communicates with assets when integrating directly with a **Power Plant Controller (PPC)** or **OEM hardware**. It outlines the preferred signal addresses and which signals HGT requires to control an asset sufficiently.
+
+Hybrid Greentech currently only uses **Modbus TCP**, where connectivity using **IEC104** is **legacy** and no longer supported for new integrations. All addresses and types given below are recommendations and should be fitted to the device on which the protocol is implemented.
+
+<Tabs>
+  <Tab title="Modbus TCP (preferred)">
+    All addresses and types are recommendations and should be fitted to the device on which the Modbus TCP protocol is implemented.
+
+  <Note>
+    The intent is that all of these registers are **holding registers** and not input registers, but input registers can work upon agreement.
+
+    **Type legend:**
+
+    * `Bool` = SingleCoil
+    * `Float32` = two registers
+    * `Integer` = two registers
+  </Note>
+
+  ### Generalised signal list
+
+  | Register Address | Signal ID                                     | Read / Write | Type    | Description                                                                                                                                                                      |
+  | ---------------- | --------------------------------------------- | ------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `10000`          | Switch On (if applicable)                     | Write        | Bool    | Switches on the asset. (If there are more assets, swap to `10100`–`10199`)                                                                                                       |
+  | `10002`          | Switch Off (if applicable)                    | Write        | Bool    | Switches off the asset. (If there are more assets, swap to `10200`–`10299`)                                                                                                      |
+  | `10004`          | Asset Status (if applicable)                  | Read         | Integer | Gets the status of the asset. (Is it OFF or ON)                                                                                                                                  |
+  | `10006`          | Active Power Setpoint                         | Write        | Float32 | Power setpoint for the asset (kW)                                                                                                                                                |
+  | `10008`          | Active Power Setpoint Readback                | Read         | Float32 | Readback of the desired active power of the asset (kW) at the AC output of the asset.                                                                                            |
+  | `20002`–`21000`  | Alarms                                        | Read         | Bool    | All alarms of the asset should be mapped to values between these. This is only for reading alarms.                                                                               |
+  | `20000`          | Acknowledge all Alarms (if applicable)        | Write        | Bool    | Single command that acknowledges all alarms and resets the high ones. This is only if the asset allows for remote control of alarms.                                             |
+  | `21002`–`22000`  | Acknowledge Individual Alarms (if applicable) | Write        | Bool    | If the asset allows for acknowledging and releasing alarms remotely. As for Alarms, these should be mapped to values between these depending on the asset's alarms.              |
+  | `30000`–`40000`  | Asset Measurements                            | Read         | Float32 | All the available asset measurements should be mapped to values between these. See Asset Measurements below for specifics.                                                       |
+  | `50002`–`60000`  | Site/Environment Measurements                 | Read         | Float32 | As many of the available site/environment measurements should be mapped to values between these. Site/Environment is specified as measurements not directly linked to the asset. |
+  | `10010`          | Total Reactive Power (if applicable)          | Read         | Float32 | Reactive power of the asset at the connection point with the local grid.                                                                                                         |
+  | `50000`          | Grid Frequency (if applicable)                | Read         | Float32 | Measured frequency at the connection point of the asset with the local grid.                                                                                                     |
+
+  ### Asset Measurements
+
+  | Register Address | Signal ID                       | Read / Write | Type              | Description                       |
+  | ---------------- | ------------------------------- | ------------ | ----------------- | --------------------------------- |
+  | `30000`          | Active Power                    | Read         | Float32           | Active power of asset \[kW]       |
+  | `30002`          | Reactive Power (if applicable)  | Read         | Float32           | Reactive power of the asset \[kW] |
+  | `30004`          | Current (if applicable)         | Read         | Float32           | Current at the asset \[A]         |
+  | `30006`          | Voltage (if applicable)         | Read         | Float32           | Voltage at the asset \[kV]        |
+  | `30008`          | State of Charge (if applicable) | Read         | Integer / Float32 | State of Charge of the asset \[%] |
+
+  </Tab>
+
+  <Tab title="IEC104 (legacy)">
+    <Note>
+    For IEC104, Hybrid Greentech prefers to use the ASDU OA (Originator Address): `3`. However, if this is unavailable for a specific asset, changing it to something else and informing Hybrid Greentech is also sufficient.
+
+    The ASDU descriptions can be found [here](https://infosys.beckhoff.com/english.php?content=../content/1033/tf6500_tc3_iec60870_5_10x/984447883.html\&id=).
+  </Note>
+
+  ### Generalised signal list
+
+  | IOA           | Signal ID                                     | Read / Write | Type        | Description                                                                                                                                                                                                                                |
+  | ------------- | --------------------------------------------- | ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | `200`         | Active Power Setpoint                         | Write        | `C_SE_NC_1` | Power setpoint for the asset (kW)                                                                                                                                                                                                          |
+  | `2500`        | Active Power Setpoint Readback                | Read         | `M_ME_TF_1` | Readback of the desired active power of the asset (kW) at the AC output of the asset.                                                                                                                                                      |
+  | `6000`–`6999` | Alarms                                        | Read         | `M_SP_TB_1` | All alarms of the asset should be mapped to values between these. This is only for reading alarms.                                                                                                                                         |
+  | `201`         | Acknowledge all Alarms (if applicable)        | Write        | `C_SC_NA_1` | Single command that acknowledges all alarms and resets the high ones. This is only if the asset allows for remote control of alarms.                                                                                                       |
+  | `7000`–`7999` | Acknowledge Individual Alarms (if applicable) | Write        | `C_SC_NA_1` | If the asset allows for acknowledging and releasing alarms remotely, these should be mapped to values between these depending on the asset's alarms.                                                                                       |
+  | `202`         | Switch On (if applicable)                     | Write        | `C_DC_NA_1` | Switches on the asset. (If there are more assets, swap to `2000`–`2099`)                                                                                                                                                                   |
+  | `203`         | Switch Off (if applicable)                    | Write        | `C_DC_NA_1` | Switches off the asset. (If there are more assets, swap to `2100`–`2199`)                                                                                                                                                                  |
+  | `204`         | Asset Status (if applicable)                  | Read         | `M_DP_TA_1` | Gets the status of the asset. (Is it OFF or ON)                                                                                                                                                                                            |
+  | `3000`–`3999` | Asset Measurements                            | Read         | Depends     | All the available asset measurements should be mapped to values between these. The measurement determines the ASDU type. See Asset Measurements below for specifics.                                                                       |
+  | `4000`–`4999` | Site/Environment Measurements                 | Read         | Depends     | As many of the available site/environment measurements should be mapped to values between these. Site/Environment is specified as measurements not directly linked to the asset. The rules applied are the same as for Asset Measurements. |
+  | `300`         | Total Reactive Power (if applicable)          | Read         | `M_ME_TF_1` | Reactive power of the asset at the connection point with the local grid.                                                                                                                                                                   |
+  | `5000`        | Grid Frequency (if applicable)                | Read         | `M_ME_TF_1` | Measured frequency at the connection point of the asset with the local grid.                                                                                                                                                               |
+
+  ### Asset Measurements
+
+  | IOA    | Signal ID                       | Read / Write | Type        | Description                       |
+  | ------ | ------------------------------- | ------------ | ----------- | --------------------------------- |
+  | `3000` | Active Power                    | Read         | `M_ME_TF_1` | Active power of asset \[kW]       |
+  | `3001` | Reactive Power (if applicable)  | Read         | `M_ME_TF_1` | Reactive power of the asset \[kW] |
+  | `3002` | Current (if applicable)         | Read         | `M_ME_TF_1` | Current at the asset \[A]         |
+  | `3003` | Voltage (if applicable)         | Read         | `M_ME_TF_1` | Voltage at the asset \[kV]        |
+  | `3004` | State of Charge (if applicable) | Read         | `M_ME_TF_1` | State of Charge of the asset \[%] |
+
+  </Tab>
+</Tabs>

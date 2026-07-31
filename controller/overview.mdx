@@ -1,0 +1,33 @@
+---
+title: Overview
+description: Integrate PPC and OEM hardware directly with the HGT platform over industrial protocols.
+---
+
+OEM Integration covers cases where Hybrid Greentech connects **directly** to a **Power Plant Controller (PPC)** or **OEM hardware** using industrial protocols, rather than through the cloud-based MQTT and REST layers used for [Distributed Energy Resources](/distributed-resources/welcome) and [Delegated Operators](/delegated-operators/welcome).
+
+This is the integration path for assets — such as batteries (BESS), inverters, and generation plant — where control and telemetry are exchanged over the field bus at the site.
+
+---
+
+## Supported protocols
+
+| Protocol       | Preference | Transport | Notes                                                      |
+| -------------- | ---------- | --------- | ---------------------------------------------------------- |
+| **Modbus TCP** | Preferred  | TCP       | Holding registers preferred; input registers on agreement. |
+| **IEC104**     | Legacy     | TCP       | ASDU OA `3` preferred; alternatives on agreement.          |
+
+The [Signal List](/controller/signal-list) documents the preferred register/signal addresses and the signals HGT requires to control an asset sufficiently for both protocols.
+
+<Note>
+  All addresses and types in the Signal List are recommendations and should be fitted to the specific device on which the protocol is implemented. Coordinate any deviations with Hybrid Greentech.
+</Note>
+
+<CardGroup cols={2}>
+  <Card
+    title="Signal List"
+    icon="fa-solid fa-list"
+    href="/controller/signal-list"
+  >
+    Preferred Modbus TCP and IEC104 signal addresses for PPC and OEM hardware.
+  </Card>
+</CardGroup>
