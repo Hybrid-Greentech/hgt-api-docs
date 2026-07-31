@@ -16,7 +16,7 @@ info:
 defaultContentType: application/json
 servers:
   sandbox:
-    host: mqtt.example.com:8883
+    host: aggregator.gridhub.dev:8883
     protocol: mqtt
     description: |
       Sandbox environment for testing and integration
@@ -26,7 +26,7 @@ servers:
     security:
       - $ref: '#/components/securitySchemes/user-password'
   production:
-    host: mqtt.example.com:8883
+    host: n1.link.gridhub.ai:8883
     protocol: mqtt
     description: |
       Production environment for real asset operations
