@@ -21,7 +21,7 @@ You are responsible for meeting these requirements. Hybrid Greentech verifies th
 
 ## Two independent keys
 
-Requirements are determined by two keys that compose. Neither one alone tells you what to do.
+Two keys determine every requirement, and they compose. Neither one alone tells you what to do.
 
 | Key | Determines | Defined in |
 |-----|------------|------------|
@@ -30,26 +30,26 @@ Requirements are determined by two keys that compose. Neither one alone tells yo
 
 A battery and a heat pump publish different metrics. The same battery delivering FFR and delivering mFRR publishes the same metrics at very different rates.
 
-### Requirements are resolved once
+### Requirement resolution
 
-An asset's bounds come from the **strictest market it is prequalified for**, and they do not change when a task starts or ends. Publish rates live in edge configuration, so an asset that sells FCR-D in the morning and mFRR in the afternoon holds the FCR-D rate all day.
+An asset's bounds come from the **strictest market it is prequalified for**. They do not change when a task starts or ends. Data frequency lives in edge configuration, so an asset that sells FCR-D in the morning and mFRR in the afternoon holds the FCR-D data frequency all day.
 
-This matters for two reasons:
+Two consequences:
 
 - You configure the integration once, against a known set of markets.
-- Compliance windows never straddle a rate change, so every window is assessable.
+- Compliance windows never straddle a change in data frequency, so every window is assessable.
 
 An asset that is not prequalified for any ancillary market can serve `wholesale` only, and takes the `wholesale` bounds.
 
 <Note>
-  These requirements replace the earlier device-type-keyed rates. Pages that described a flat 100 ms rate for every battery, or a response bound that depended on asset class rather than market, were superseded.
+  These requirements replace the earlier device-type-keyed rates. Any page that ties a data frequency or a response bound to asset class rather than to market is superseded.
 </Note>
 
 ---
 
-## Response bounds depend on who closes the loop
+## Control topology
 
-The **roundtrip asset response** bound is measured from a setpoint the platform sent. That gives a single rule:
+The platform measures **roundtrip asset response** from a setpoint it sent. That gives a single rule:
 
 <Info>
   A roundtrip bound applies to an asset if and only if the platform issues activations to it.
@@ -60,14 +60,14 @@ The **roundtrip asset response** bound is measured from a setpoint the platform 
 | Platform control | Tasks **and** activations carrying setpoints | Yes |
 | Local control | Tasks only — you compute the response yourself | No |
 
-Under local control you answer to the TSO's activation profile directly, and the platform verifies delivery against that profile rather than against a roundtrip bound. Data frequency applies either way: the platform needs the telemetry to verify delivery and, for aFRR, to report it onward.
+Under local control you answer to the TSO's activation profile directly. The platform verifies delivery against that profile rather than against a roundtrip bound. Data frequency applies either way: the platform needs the telemetry to verify delivery and, for aFRR, to report it onward.
 
 For assets integrated through the Delegated Operators API:
 
 - **aFRR is always platform control.** The PICASSO signal arrives at Hybrid Greentech on a four-second cycle, so the platform relays it as activations.
 - **Every other market may be local.** FCR-family products are frequency-triggered and can be computed on site, provided the asset meets the TSO profile.
 
-Frequency-responsive markets under platform control require Hybrid Greentech's own frequency measurement and setpoint computation on site. Sub-second response cannot be closed over a cloud roundtrip: two transport legs alone consume 500 ms of FFR's 700 ms obligation.
+Frequency-responsive markets under platform control require Hybrid Greentech's own frequency measurement and setpoint computation on site. A sub-second response cannot be closed over a cloud roundtrip.
 
 ---
 
@@ -76,8 +76,8 @@ Frequency-responsive markets under platform control require Hybrid Greentech's o
 Some requirements on these pages are new or tighter than what your integration was built against. The most likely to affect you:
 
 - Available power up and down, and available energy up and down, are now required for batteries.
-- State of charge tightens from a 5 second to a 1 second bound.
-- Grid frequency becomes mandatory — not optional — for frequency-responsive markets.
+- State of charge tightens to a shorter bound — see [Metrics](/data-standards/metrics).
+- Grid frequency is mandatory, not optional, for the frequency-responsive markets.
 
 Existing integrations remain compliant until their next prequalification. New integrations meet these requirements from day one.
 

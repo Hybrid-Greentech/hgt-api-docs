@@ -3,11 +3,11 @@ title: Metrics
 description: Which metrics each device type publishes, with types, units, and baseline rules.
 ---
 
-## How to read this page
+## Reading these tables
 
-Device type decides **which** metrics you publish. The market decides **how fast** most of them flow — see [Market requirements](/data-standards/markets). Where a bound below says "market data frequency", look the value up there.
+Device type decides **which** metrics you publish. The market decides **how fast** most of them flow. Where a bound below says "market data frequency", look the value up in [Market requirements](/data-standards/markets).
 
-Publish one measurement per message. The `measurementMessage` schema carries a single `measurementType` and a single value, and the platform does not accept batched payloads.
+Publish one measurement per message. The `measurementMessage` schema carries a single `measurementType` and a single value. The platform does not accept batched payloads.
 
 The measurements channel is addressed per asset:
 
@@ -37,15 +37,15 @@ Active power is the only metric required of every device type. Everything else i
 | Available energy down | `availableEnergyDown` | Float | kWh | 1 s |
 | State of charge | `stateOfCharge` | Float, 0–100 inclusive | % | 1 s |
 
-**Up** is the upward-regulation direction — the asset injects more power by discharging. **Down** is downward regulation — the asset absorbs more power by charging. A battery at 94% state of charge has close to full available power up and very little available power down.
+**Up** is upward regulation: the asset injects more power by discharging. **Down** is downward regulation: the asset absorbs more power by charging. A battery at 94% state of charge has close to full available power up and very little available power down.
 
-Available power tracks measured power and therefore carries the market's data frequency: the two are read together, and a stale capability is worse than a stale measurement because the platform dispatches against it.
+Available power tracks measured power, so it carries the market's data frequency.
 
 <Warning>
   Available power up and down are a commitment, not an observation. The platform may dispatch up to the last value you published. If capability falls, publish the new value immediately rather than waiting for the next interval.
 </Warning>
 
-Available energy and state of charge are market-independent. They describe a slow-moving physical condition, so a 1 second bound holds whether the battery serves FFR or wholesale.
+Available energy and state of charge are market-independent. They describe a slow-moving physical condition, so their bounds hold whether the battery serves FFR or wholesale.
 
 Solar plants publish the metrics in [Every device type](#every-device-type) only.
 
@@ -59,7 +59,7 @@ Solar plants publish the metrics in [Every device type](#every-device-type) only
 
 Grid frequency is **mandatory** for the frequency-responsive markets — `ffr`, `fcr-d`, `fcr-n`, and `fcr` — and optional elsewhere. Publish it in other markets when the site measures it.
 
-An asset cannot deliver a frequency-responsive product without measuring frequency locally, and the platform cannot verify delivery without seeing the stimulus. It pairs the asset's power response against the frequency the same controller measured on the same clock, which is why frequency is published per asset rather than once per site. A site with several assets publishes the value on each asset's own topic. This duplication is intentional.
+Publish frequency on each asset's own topic. A site with several assets publishes the same value on every asset's topic, and this duplication is intentional: the platform pairs an asset's power response against the frequency the same controller measured on the same clock.
 
 Grid frequency is a property of the connection point, so the bound does not vary by device type.
 
@@ -67,7 +67,7 @@ Grid frequency is a property of the connection point, so the bound does not vary
 
 ## Baseline power
 
-A baseline is the asset's commanded position **excluding** the market being settled, so the platform can derive delivered energy by subtracting it from measured power.
+A baseline is the asset's commanded position **excluding** the market being settled. The platform derives delivered energy by subtracting it from measured power.
 
 | Metric | `measurementType` | Type | Unit | Bound |
 |--------|-------------------|------|------|-------|
@@ -89,16 +89,16 @@ FCR-family products need no baseline. Their delivered volume is derived from fre
   Never include a market's own setpoint in its baseline. The platform derives delivered energy by subtracting the baseline from measured power, so including it reports zero delivery.
 </Warning>
 
-The baseline is piecewise-constant, so holding the last value between samples is expected. Publish immediately whenever any constituent setpoint changes, without waiting for the next interval — a step that lands between samples otherwise misattributes energy to the settled market.
+The baseline is piecewise-constant, so holding the last value between samples is expected. Publish immediately whenever any constituent setpoint changes — a step that lands between samples misattributes energy to the settled market.
 
-### How a baseline is derived
+### Baseline derivation
 
 | Device type | Baseline is | Status |
 |-------------|-------------|--------|
 | Battery, solar | The sum of commanded setpoints | Exact, and auditable against the activations the platform issued |
 | EV charger, heat pump | What the device would have drawn without dispatch | An estimate |
 
-A heat pump has no setpoints to add up, so its baseline is a counterfactual. Document your estimation method during onboarding; the platform cannot audit it the way it audits a commanded baseline.
+A heat pump has no setpoints to add up, so its baseline is a counterfactual. Document your estimation method during onboarding. The platform cannot audit an estimate the way it audits a commanded baseline.
 
 ---
 
@@ -111,7 +111,7 @@ These integrations keep the metrics their own APIs define. The bounds on [Market
 | EV chargers | Active power, as `power_kw` on the power channel | [EV Chargers](/ev-chargers/quickstart) |
 | Heat pumps | Upward and downward availability, as `availableUpKw` and `availableDownKw` | [Heat Pumps](/heat-pumps/quickstart) |
 
-A heat pump publishes no active power. Its response to an activation is visible in its availability values and in the `ActivatedUp` and `ActivatedDown` status events, and the platform assesses the roundtrip bound against those rather than against a power movement.
+A heat pump publishes no active power. Its response to an activation appears in its availability values and in the `ActivatedUp` and `ActivatedDown` status events. The platform assesses the roundtrip bound against those rather than against a power movement.
 
 <Note>
   A heat pump's availability values describe its capacity to shift consumption. They are not the same quantity as a battery's available power up and down, and the two are not interchangeable in settlement.
@@ -130,7 +130,7 @@ For a battery, with every metric at its bound:
 | `mfrr` | ~3.1 |
 | `wholesale` | ~3.1 |
 
-Available energy and state of charge are market-independent, so about 3 messages per second is the floor for a battery regardless of what it sells. The saving from a slow market comes from active power, available power, and the baseline, which drop from 10 Hz to once per minute.
+Available energy and state of charge are market-independent, so about 3 messages per second is the floor for a battery regardless of what it sells. The saving from a slow market comes from active power, available power, and the baseline, which follow the market data frequency.
 
 ---
 

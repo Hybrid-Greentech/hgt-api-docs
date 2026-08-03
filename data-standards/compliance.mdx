@@ -3,22 +3,20 @@ title: Compliance
 description: How the platform assesses bounds, and the integrity, clock, and transport rules every integration must meet.
 ---
 
-## How bounds are assessed
+## Bound assessment
 
 The platform assesses compliance per asset and per metric over a rolling one-hour window. Both of the following must hold for every bound on [Market requirements](/data-standards/markets):
 
 - At least **99%** of intervals are within the bound.
 - **No single gap** exceeds **10 times** the bound.
 
-The percentile absorbs ordinary jitter and retransmission. The maximum gap catches an outage short enough to hide inside the percentile: 30 seconds of silence is only 0.8% of a one-hour window.
+The percentile absorbs ordinary jitter and retransmission; the maximum gap catches an outage short enough to hide inside it.
 
-For example, a metric bound at 1 second must stay within 1 second for 99% of intervals and must never show a gap longer than 10 seconds. The same pair applies to delivery lag and to roundtrip response.
-
-Roundtrip response is assessed the same way: at least 99% of activations in a rolling one-hour window must be answered within the bound.
+The same pair applies to delivery lag. For roundtrip response, at least 99% of activations in the window must be answered within the bound.
 
 ### Declared outages
 
-Gaps inside a declared outage are excluded from the percentile and remain in the record. Declare an outage by publishing to the events channel with `domain: NETWORKING` or `domain: NOTAVAILABLE`:
+The platform excludes gaps inside a declared outage from the percentile and keeps them in the record. Declare an outage by publishing to the events channel with `domain: NETWORKING` or `domain: NOTAVAILABLE`:
 
 ```
 {priceZone}/{customerName}/events/{assetId}
@@ -30,13 +28,13 @@ Declare communication failures rather than leaving a silent gap. The platform ca
 
 Before go-live, an asset must meet the requirements for its markets for **24 continuous hours** in the sandbox environment.
 
-Prequalification is also where an existing integration takes on any newly added obligation. Integrations that were compliant under the previous requirements stay compliant until their next prequalification.
+An existing integration takes on any newly added obligation at its next prequalification, and stays compliant under the previous requirements until then.
 
 ---
 
 ## Value integrity
 
-Every bound assumes that published values are sampled rather than derived. Do not:
+Publish sampled values, never derived ones. Do not:
 
 - **Average, smooth, or decimate.** If the on-site value changes faster than the data frequency, publish the change. Do not publish a rolling mean in place of samples.
 - **Interpolate.** Do not generate intermediate values between samples.
@@ -57,11 +55,11 @@ Every measurement message carries two timestamps:
 | `assetTimestamp` | When the site sampled the value |
 | `serverTimestamp` | When Hybrid Greentech received the message |
 
-Data frequency is assessed on the gap between consecutive `assetTimestamp` values. Delivery lag is `serverTimestamp − assetTimestamp`. The platform assesses each separately.
+The platform assesses data frequency on the gap between consecutive `assetTimestamp` values, and delivery lag as `serverTimestamp − assetTimestamp`. It assesses each separately.
 
 ## Clocks
 
-`assetTimestamp` is set by your clock and `serverTimestamp` by the platform's, so clock offset counts toward the delivery lag.
+Your clock sets `assetTimestamp` and the platform's sets `serverTimestamp`, so clock offset counts toward delivery lag.
 
 | Requirement | Value |
 |-------------|-------|
@@ -83,14 +81,14 @@ An `assetTimestamp` later than its `serverTimestamp` indicates a clock fault on 
 | `tasks` | Platform to operator | 1 |
 | `activation` | Platform to operator | 1 |
 
-Measurements use QoS 0 because a sample redelivered by a broker retry has already breached its delivery lag and cannot be used for control or settlement. Events and task events are low-rate and individually meaningful, so they are delivered at least once.
+Measurements use QoS 0 because a sample redelivered by a broker retry has already breached its delivery lag and cannot be used for control or settlement. Events and task events are low-rate and individually meaningful, so the platform delivers them at least once.
 
 The `measurements` channel has two additional requirements:
 
 - **Do not publish retained messages.** A retained power value appears live to any new subscriber.
 - **Use a clean session.** A reconnecting site must not deliver a backlog of samples that are already outside the delivery lag bound.
 
-### Discard stale activations
+### Stale activations
 
 Activations are delivered at QoS 1, so after a reconnection the broker can deliver a setpoint that is several seconds old. Discard an activation if either of the following is true:
 
