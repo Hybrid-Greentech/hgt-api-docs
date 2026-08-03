@@ -293,7 +293,7 @@ Report the lifecycle status of dispatched tasks.
 
 **Topic:** `{priceZone}/{customerName}/events/{assetId}`
 
-Report operational events from the site — networking issues, asset problems, or unavailability.
+Report operational events from the site. The `domain` field scopes what belongs here: networking, asset, and availability events, at any severity from `INFO` to `CRITICAL`. Alarms, faults, and non-operational states are all reported on this channel, and `eventContext` carries your own code and description for each one.
 
 ```json title="Event message"
 {
@@ -315,6 +315,8 @@ Report operational events from the site — networking issues, asset problems, o
 **Severity levels:** `INFO`, `LOW`, `HIGH`, `CRITICAL`
 
 **Event domains:** `NETWORKING`, `ASSET`, `NOTAVAILABLE`
+
+Task lifecycle does not belong here — publish it as a task event, above.
 
 ---
 

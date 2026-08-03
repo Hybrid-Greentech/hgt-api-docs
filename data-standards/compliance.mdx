@@ -10,19 +10,21 @@ The platform assesses compliance per asset and per metric over a rolling one-hou
 - At least **99%** of intervals are within the bound.
 - **No single gap** exceeds **10 times** the bound.
 
-The percentile absorbs ordinary jitter and retransmission; the maximum gap catches an outage short enough to hide inside it.
+The percentile absorbs ordinary jitter and retransmission; the maximum gap catches a silence short enough to hide inside it.
 
 The same pair applies to delivery lag. For roundtrip response, at least 99% of activations in the window must be answered within the bound.
 
-### Declared outages
+### Events
 
-The platform excludes gaps inside a declared outage from the percentile and keeps them in the record. Declare an outage by publishing to the events channel with `domain: NETWORKING` or `domain: NOTAVAILABLE`:
+Report alarms, faults, and non-operational states on the events channel, classified by `domain` and `severity`:
 
 ```
 {priceZone}/{customerName}/events/{assetId}
 ```
 
-Declare communication failures rather than leaving a silent gap. The platform cannot distinguish an undeclared gap from an asset that stopped reporting.
+Report a communication failure or an asset that has gone non-operational rather than going silent. The platform cannot distinguish a silent gap from an asset that stopped reporting.
+
+Task lifecycle does not belong on this channel. Publish `STARTED`, `COMPLETED`, `FAILED`, `INVALID`, and `UNAUTHORISED` as task events instead. See [Events](/delegated-operators/operational-flow#events) for both payloads.
 
 ### Prequalification
 
