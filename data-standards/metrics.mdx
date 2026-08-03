@@ -7,6 +7,8 @@ description: Which metrics each device type publishes, with types, units, and ba
 
 Device type decides **which** metrics you publish. The market decides **how fast** most of them flow. Where a bound below says "market data frequency", look the value up in [Market requirements](/data-standards/markets).
 
+The `measurementType` names below are the ones the Delegated Operators API defines. EV chargers and heat pumps publish the metrics their own APIs name — see [EV chargers and heat pumps](#ev-chargers-and-heat-pumps).
+
 Publish one measurement per message. The `measurementMessage` schema carries a single `measurementType` and a single value. The platform does not accept batched payloads.
 
 The measurements channel is addressed per asset:
@@ -22,22 +24,12 @@ The measurements channel is addressed per asset:
 | Metric | `measurementType` | Type | Unit | Bound |
 |--------|-------------------|------|------|-------|
 | Active power | `powerAc` | Float | kW | Market data frequency |
-
-Active power is the only metric required of every device type. Everything else is conditional on the device, the market, or both.
-
----
-
-## Batteries
-
-| Metric | `measurementType` | Type | Unit | Bound |
-|--------|-------------------|------|------|-------|
 | Available power up | `availablePowerUp` | Float | kW | Market data frequency |
 | Available power down | `availablePowerDown` | Float | kW | Market data frequency |
-| Available energy up | `availableEnergyUp` | Float | kWh | 1 s |
-| Available energy down | `availableEnergyDown` | Float | kWh | 1 s |
-| State of charge | `stateOfCharge` | Float, 0–100 inclusive | % | 1 s |
 
-**Up** is upward regulation: the asset injects more power by discharging. **Down** is downward regulation: the asset absorbs more power by charging. A battery at 94% state of charge has close to full available power up and very little available power down.
+Every device type publishes active power and both available power values. Everything else is conditional on the device, the market, or both.
+
+**Up** is upward regulation: the asset injects more power to the grid, by discharging or by reducing consumption. **Down** is downward regulation: the asset absorbs more power from the grid, by charging or by increasing consumption.
 
 Available power tracks measured power, so it carries the market's data frequency.
 
@@ -45,7 +37,21 @@ Available power tracks measured power, so it carries the market's data frequency
   Available power up and down are a commitment, not an observation. The platform may dispatch up to the last value you published. If capability falls, publish the new value immediately rather than waiting for the next interval.
 </Warning>
 
+---
+
+## Batteries
+
+| Metric | `measurementType` | Type | Unit | Bound |
+|--------|-------------------|------|------|-------|
+| Available energy up | `availableEnergyUp` | Float | kWh | 1 s |
+| Available energy down | `availableEnergyDown` | Float | kWh | 1 s |
+| State of charge | `stateOfCharge` | Float, 0–100 inclusive | % | 1 s |
+
+A battery publishes these in addition to the metrics in [Every device type](#every-device-type).
+
 Available energy and state of charge are market-independent. They describe a slow-moving physical condition, so their bounds hold whether the battery serves FFR or wholesale.
+
+A battery at 94% state of charge has close to full available power up and very little available power down.
 
 Solar plants publish the metrics in [Every device type](#every-device-type) only.
 
@@ -104,7 +110,7 @@ A heat pump has no setpoints to add up, so its baseline is a counterfactual. Doc
 
 ## EV chargers and heat pumps
 
-These integrations keep the metrics their own APIs define. The bounds on [Market requirements](/data-standards/markets) apply to them; the metric set does not change.
+These integrations keep the metrics their own APIs define. The bounds on [Market requirements](/data-standards/markets) apply to them; the metric set does not change. The available power requirement in [Every device type](#every-device-type) is scoped to the Delegated Operators API and does not extend to these two surfaces.
 
 | Integration | Publishes | Reference |
 |-------------|-----------|-----------|
@@ -112,6 +118,8 @@ These integrations keep the metrics their own APIs define. The bounds on [Market
 | Heat pumps | Upward and downward availability, as `availableUpKw` and `availableDownKw` | [Heat Pumps](/heat-pumps/quickstart) |
 
 A heat pump publishes no active power. Its response to an activation appears in its availability values and in the `ActivatedUp` and `ActivatedDown` status events. The platform assesses the roundtrip bound against those rather than against a power movement.
+
+The EV charger API defines no availability fields, so an EV charger publishes active power only. Available power up and down are excluded on that surface rather than added to the API.
 
 <Note>
   A heat pump's availability values describe its capacity to shift consumption. They are not the same quantity as a battery's available power up and down, and the two are not interchangeable in settlement.
