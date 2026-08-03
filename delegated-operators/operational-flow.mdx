@@ -252,16 +252,21 @@ Stream real-time telemetry from on-site measurement devices.
 |------|-------------|
 | `frequency` | Grid frequency (Hz) |
 | `powerAc` | AC power (kW) |
-| `powerDc` | DC power (kW) |
+| `availablePowerUp` | Power still available for upward regulation (kW) |
+| `availablePowerDown` | Power still available for downward regulation (kW) |
+| `availableEnergyUp` | Energy still available for upward regulation (kWh) |
+| `availableEnergyDown` | Energy still available for downward regulation (kWh) |
 | `stateOfCharge` | Battery SoC (%) |
 | `afrrBaseline` | Sum of all setpoints except aFRR — used to compute delivered aFRR energy |
+| `mfrrBaseline` | Sum of all setpoints except mFRR — used to compute delivered mFRR energy |
+| `powerDc` | Deprecated. Diagnostic only and no longer part of the data requirements. |
 | `powerSocManagement` | Deprecated. The platform ignores the value. The enum value remains so that existing publishers do not fail validation. |
 
 <Note>
-  The `afrrBaseline` measurement is the sum of everything the battery is doing **except** aFRR. The platform uses this to calculate how much aFRR energy was actually delivered by subtraction.
+  A baseline is the sum of everything the asset is doing **except** the market being settled. The platform uses it to calculate how much energy that market actually delivered, by subtraction.
 </Note>
 
-Required publish rates differ by measurement type and asset class. See [Data Standards](/delegated-operators/data-standards) for the sample interval of each type, the 250 ms delivery lag bound, and the clock requirements.
+Required data frequencies, delivery lag, and response bounds depend on the market the asset is prequalified for. See [Data Standards](/data-standards/overview) for the requirements and the clock rules.
 
 #### Task events
 
@@ -317,7 +322,7 @@ Report operational events from the site — networking issues, asset problems, o
 
 | Field | Format | Notes |
 |-------|--------|-------|
-| MQTT timestamps (`startTime`, `serverTimestamp`, etc.) | Unix milliseconds since epoch | Synchronise to NTP or better, within 50 ms of UTC, correcting by slew. See [Data Standards](/delegated-operators/data-standards) |
+| MQTT timestamps (`startTime`, `serverTimestamp`, etc.) | Unix milliseconds since epoch | Synchronise to NTP or better, within 50 ms of UTC, correcting by slew. See [Compliance](/data-standards/compliance#clocks) |
 | REST timestamps (`startTime`, `fromTime`, etc.) | ISO 8601 / RFC 3339 (UTC) | Used in query parameters and response bodies |
 | Asset IDs | UUID v4 | Must be registered on the platform before use |
 | Event IDs | ULID | Time-ordered, used for deduplication |
@@ -329,7 +334,7 @@ Report operational events from the site — networking issues, asset problems, o
 
 Once connected, the operator runs three concurrent loops against the platform:
 
-![](https://mermaid.ink/img/pako:eNqFVM1u2kAQfpXRnlLJAQw4GB8ikR9VOSAoQaoUcdnYg73C3nVn11CKiPoQfcI-SccQGgppO4eV7Znvm5lvZr0RsUlQRMLilwp1jHdKpiSLmQa2UpJTsSqldjACaWFUIkln6Nw9qd2T-8cpDMYP5-5h7R5-mk7hhswCmWAfQxg7oPT5ot0OPGh366MTftg7tXEIZokEI28SwVTaBZQmz5VO4ef3H_DxfgrNZbuZKFtKF2dNxxF2j82NKeGesWt48SEz1WvNtY0ur6-Zb8xUMDcEVZlIhwkceOCIp7bJJQNGETzGGSZVzpG7AHheQyFpgQ5KMkkVuz0EdfJu_Xfo6m7jTOoULSyVhNgUhXIFaveQHIFPtem0am18PgL_HW2GEQxR2oqwZgLrCGVxEGlTkorxyWjcNjdxZZ0pkLbNRqPRLN5AtrmR1iKXsT3Tz8qizBGUdkhLmf-pI-ceV8-5shmPZoU0iD2Y036Z1h7XwsqO5reZpBQ9kHOiG2mRR4j_EItJb412SlemsrDKFKfflQfKgtEn6FO1glqtzlV9_EWtCcr80qmCWWOnltIpo-3_1HoLPdVquF-Pcd0_sKM0rBVcLD6fZ49gUJb5-i3KmUNnRYGJYrXy9bs1D4jUktcmqage7a4a3C0irJROzMoeSSI8kZJKROSoQk9wD4WsX8WmDpoJl_HUZyLix4Q3eCZmessYvqpPxhQHGJkqzUQ0l7nlt_0tef0__P5KnA_p1lTaiejK33GIaCO-iqjTajf6vbB75Yd9vx0G7FyLKOg3_LAXBEG31Q1Dv9XbeuLbLmmrEfa6_WPb_gLkIYK2?type=png)
+![](https://mermaid.ink/img/pako:eNqFVFFv2jAQ_isnP21SSgiQEvJQibXV1AcEo0iTKl5Mck0sEjuznTCGmPYj9gv3S3YOZWWl6-7Bin33fXf3-ZwdS1SKLGYGv9QoE7wRPNO8XEogq7i2IhEVlxamwA1MK9TcKn3unjv3_PZ-AePZ3bl74tyTT4sFfNBqjURwiNGYWNDZ6l2vF3rQG7ilH70_OKWyCKpBDVNvHsOCmzVUqiiEzODXj5_w8XYBftPzU2EqbpPctxRhDthCqQpuCbuF7wHkqn6q2dn04uqK-GZEBY9KQ12l3GIKRx444XE2vyDANIb7JMe0LiiyDYDVFkqu12ih0iqtE3uAoExfrf8Gres2ybnM0EAjOCSqLIUtUdq79AT8Upt-12kT0BIGr2gziWGC3NQaHRMYq5GXR5F2lRYJPiiJe3-X1MaqEvXe73Q6fvkMMv6OG4NUxv5MP8PLqkAQ0qJuePG3jpR7Vq8KYXK6mg3qceIBb7go-KrAmTvxqCCSd_p4nXOdoQcrbpDuEM0bchHttZJWyFrVBja5oALaAkEYUNLB39ArdHr1L93yD73myIsLK0piTaxouBVKmv_p9Rz6Uq3JYUDafoEclSK14N3683n2GMZVVWyfo6w6dlaWmAqSqti-WvNYa9HQ4KS1dpfbVoPtKMJGyFRtTgVlHsu0SFlsdY0eox5K7rZs54KWzOZ070sW02dKM7xkS7knDD3WB6XKI0yrOstZ_MgLQ7vDO3n6Q_w51ZQP9bWqpWXxZdBysHjHvrK43-11RsNocBlEo6AXheTcsjgcdYJoGIbhoDuIoqA73HvsW5u024mGg9Gp7X8DLWODeg?type=png)
 
 ```mermaid
 sequenceDiagram
@@ -349,7 +354,7 @@ sequenceDiagram
     rect rgb(230, 241, 251)
     note over O,M: Measurement streaming — {priceZone}/{customer}/.../measurements/{assetId}
     loop Every sample interval
-        O->>M: Publish powerAc, frequency, stateOfCharge, afrrBaseline
+        O->>M: Publish powerAc, availablePower, stateOfCharge, baselines
     end
     note over O,M: Continuous while asset is online
     end
@@ -364,9 +369,9 @@ sequenceDiagram
 
 **Task polling** runs on a slow cycle (typically hourly). The operator calls `GET /v2/dispatch/tasks` to retrieve the platform's planned schedule — which market product each asset is delivering, in which direction, at what magnitude, and for how long. Use the `commitmentId` field to detect whether a task has changed since the last poll.
 
-**Measurement streaming** runs continuously over MQTT. The operator publishes telemetry for each online asset: AC power, grid frequency, state of charge, and the aFRR baseline. DC power is optional. The required sample interval depends on the asset class and the measurement type, and ranges from 100 ms to 5 s. See [Data Standards](/delegated-operators/data-standards).
+**Measurement streaming** runs continuously over MQTT. The operator publishes telemetry for each online asset: active power, available power and energy, state of charge, market baselines, and grid frequency where the market requires it. The required data frequency depends on the market the asset is prequalified for. See [Data Standards](/data-standards/overview).
 
-**Real-time activations** are event-driven. During an active task window, the platform pushes power setpoints over MQTT. When one arrives, ramp the asset toward the specified power level immediately. The platform must receive a measurement showing the response within 1 second for a BESS and 5 seconds for PV. Discard an activation that is older on receipt than that bound, or that a newer activation for the same task has superseded.
+**Real-time activations** are event-driven. During an active task window, the platform pushes power setpoints over MQTT. When one arrives, ramp the asset toward the specified power level immediately. The platform must receive a measurement showing the response within the roundtrip bound for the asset's market. Discard an activation that is older on receipt than that bound, or that a newer activation for the same task has superseded.
 
 <Note>
   These three loops run concurrently. Task polling tells the operator **what to expect**. Measurements tell the platform **what the asset is doing**. Activations tell the operator **what to do right now**.

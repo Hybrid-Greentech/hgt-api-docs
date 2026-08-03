@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Delegated Operator - Management and Monitoring API
-  version: v3.0.1
+  version: v3.1.0
   description: >
     Real-time API for managing and monitoring distributed energy resources
     (DERs) including batteries, solar installations, and other grid-connected
@@ -152,29 +152,47 @@ components:
       type: string
       description: |
         Describes the measurement types that are allowed when sending the data. Most of them are straightforward
-        - `aFRRBaseline` is the sum of all setpoints except the aFRR setpoint. This is all the actions the battery is doing except aFRR. This can be in either direction. This will be used to compute the delivered aFRR energy using the aFRR Baseline.
+        - `afrrBaseline` is the sum of all setpoints except the aFRR setpoint. This is all the actions the battery is doing except aFRR. This can be in either direction. This will be used to compute the delivered aFRR energy using the aFRR Baseline.
+        - `mfrrBaseline` is the same quantity for mFRR: the sum of all setpoints except the mFRR setpoint. Publish both baselines when the asset is enrolled in both markets.
+        - `availablePowerUp` and `availablePowerDown` are the power the asset can still deliver in each regulation direction. The platform dispatches against the last published value.
+        - `availableEnergyUp` and `availableEnergyDown` are the energy still available in each direction.
+        - `powerDc` is deprecated. It is diagnostic only and no longer part of the data requirements. The enum value remains so that existing publishers do not fail validation. Do not implement it in new integrations.
         - `powerSocManagement` is deprecated. The platform ignores the value. The enum value remains so that existing publishers do not fail validation. Do not implement it in new integrations.
 
-        Required sample intervals differ by measurement type and asset class. See the Data Standards page in the Delegated Operators documentation.
+        Required data frequencies depend on the market the asset is prequalified for, and on the device type. See the Data Standards documentation.
 
       enum:
         - frequency
         - powerAc
         - powerDc
         - afrrBaseline
+        - mfrrBaseline
+        - availablePowerUp
+        - availablePowerDown
+        - availableEnergyUp
+        - availableEnergyDown
         - powerSocManagement
         - stateOfCharge
     taskType:
       type: string
+      description: |
+        The market an asset is delivering. `dayahead` is deprecated in favour of `wholesale`, which
+        also covers intraday continuous and intentional imbalance. The platform maps `dayahead` to
+        `wholesale`; the enum value remains so that existing publishers do not fail validation.
       enum:
-        - afrr
+        - ffr
+        - fcr
         - fcrd
         - fcrn
+        - afrr
+        - mfrr
+        - wholesale
         - dayahead
     units:
       type: string
       enum:
         - kW
+        - kWh
         - Hz
         - '%'
         - W

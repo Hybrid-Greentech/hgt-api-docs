@@ -146,7 +146,7 @@ On receipt:
 
 ## Step 5 — Stream telemetry
 
-Continuously publish measurements from each online asset. The required rate depends on the asset class and the measurement type. See [Data Standards](/delegated-operators/data-standards).
+Continuously publish measurements from each online asset. The required rate depends on the market the asset is prequalified for, and the metric set depends on the device type. See [Data Standards](/data-standards/overview).
 
 **Topic:** `{priceZone}/{customerName}/measurements/{assetId}`
 
@@ -164,24 +164,25 @@ Continuously publish measurements from each online asset. The required rate depe
 }
 ```
 
-Publish every applicable measurement type: `powerAc`, `frequency`, `stateOfCharge`, and `afrrBaseline` (when the asset is enrolled in aFRR). `powerDc` is optional. The sample interval is 100 ms for BESS active power and grid frequency, 1 s for PV active power and the aFRR baseline, and 5 s for state of charge. Delivery lag (`serverTimestamp − assetTimestamp`) must be 250 ms or less. See [Data Standards](/delegated-operators/data-standards) for the full requirements.
+Publish every applicable measurement type. Active power, available power up and down, and grid frequency flow at the data frequency of the market the asset is prequalified for; available energy up and down and state of charge flow at 1 s. Grid frequency is mandatory for the frequency-responsive markets. See [Metrics](/data-standards/metrics) for the full set and [Market requirements](/data-standards/markets) for the bounds.
 
 ***
 
-## Step 5.5 — aFRR Baseline
+## Step 5.5 — Baselines
 
-When an asset is enrolled in aFRR, it is mandatory to report the baseline, which consists of all combined setpoints excluding the aFRR activation.
+When an asset is enrolled in aFRR or mFRR, it is mandatory to report a baseline for that market, consisting of all combined setpoints excluding that market's own activation.
 
-The `afrrBaseline` is calculated as follows:
+The baselines are calculated as follows:
 
 ```typescript
-// afrrBaseline = Sum(setpoints in other active markets)
+// baseline = Sum(setpoints in other active markets)
 
-afrrBaseline = FCRD + FCRN + FFR + mFRR + Wholesale
+afrrBaseline = FCR + FCRD + FCRN + FFR + mFRR + Wholesale
+mfrrBaseline = FCR + FCRD + FCRN + FFR + aFRR + Wholesale
 ```
 
 <Warning>
-  It is very important that the setpoint calculated for aFRR is not included in this baseline, as the baseline is used to calculate the actual aFRR delivery.
+  It is very important that a market's own setpoint is not included in its baseline, as the baseline is used to calculate the actual delivery for that market.
 </Warning>
 
 
@@ -189,9 +190,9 @@ afrrBaseline = FCRD + FCRN + FFR + mFRR + Wholesale
 
 ## Step 6 — Respond to activations
 
-During an active task window, the platform pushes real-time power setpoints. Apply them immediately. The platform must receive a measurement showing the response within 1 second for a BESS and 5 seconds for PV. See [Data Standards](/delegated-operators/data-standards).
+During an active task window, the platform pushes real-time power setpoints. Apply them immediately. The platform must receive a measurement showing the response within the roundtrip bound for the market the asset is prequalified for. See [Market requirements](/data-standards/markets).
 
-Activations are delivered at QoS 1, so a reconnection can deliver a setpoint that is no longer current. Discard an activation that is older on receipt than the bound for the asset class, or that a newer activation for the same task has superseded.
+Activations are delivered at QoS 1, so a reconnection can deliver a setpoint that is no longer current. Discard an activation that is older on receipt than the roundtrip bound for the asset's market, or that a newer activation for the same task has superseded.
 
 **Topic:** `{priceZone}/{customerName}/activation/{assetId}`
 

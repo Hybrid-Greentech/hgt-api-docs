@@ -1,0 +1,98 @@
+---
+title: Data Standards
+description: How telemetry and response requirements are determined for every asset and resource on the HGT platform.
+---
+
+## Scope
+
+These pages define what you publish, how often you publish it, and how quickly an asset must answer a dispatch. If another page or diagram states a different value, use the value here.
+
+The requirements cover every integration surface:
+
+| Integration | What these pages govern |
+|-------------|-------------------------|
+| Delegated Operators API | All metrics, bounds, and compliance rules |
+| EV charger and heat pump APIs | Bounds and compliance rules, applied to the metrics those APIs already carry |
+| Direct PPC and OEM hardware | Bounds, applied over the registers in the [Signal List](/controller/signal-list) |
+
+You are responsible for meeting these requirements. Hybrid Greentech verifies them at prequalification and when investigating an operational incident. The platform does not publish a compliance feed, so the absence of a warning is not confirmation that an integration is compliant.
+
+---
+
+## Two independent keys
+
+Requirements are determined by two keys that compose. Neither one alone tells you what to do.
+
+| Key | Determines | Defined in |
+|-----|------------|------------|
+| Device type | **Which** metrics you publish | [Metrics](/data-standards/metrics) |
+| Market | **How fast** those metrics flow, and how fast the asset answers | [Market requirements](/data-standards/markets) |
+
+A battery and a heat pump publish different metrics. The same battery delivering FFR and delivering mFRR publishes the same metrics at very different rates.
+
+### Requirements are resolved once
+
+An asset's bounds come from the **strictest market it is prequalified for**, and they do not change when a task starts or ends. Publish rates live in edge configuration, so an asset that sells FCR-D in the morning and mFRR in the afternoon holds the FCR-D rate all day.
+
+This matters for two reasons:
+
+- You configure the integration once, against a known set of markets.
+- Compliance windows never straddle a rate change, so every window is assessable.
+
+An asset that is not prequalified for any ancillary market can serve `wholesale` only, and takes the `wholesale` bounds.
+
+<Note>
+  These requirements replace the earlier device-type-keyed rates. Pages that described a flat 100 ms rate for every battery, or a response bound that depended on asset class rather than market, were superseded.
+</Note>
+
+---
+
+## Response bounds depend on who closes the loop
+
+The **roundtrip asset response** bound is measured from a setpoint the platform sent. That gives a single rule:
+
+<Info>
+  A roundtrip bound applies to an asset if and only if the platform issues activations to it.
+</Info>
+
+| Arrangement | What the platform sends | Roundtrip applies |
+|-------------|-------------------------|-------------------|
+| Platform control | Tasks **and** activations carrying setpoints | Yes |
+| Local control | Tasks only — you compute the response yourself | No |
+
+Under local control you answer to the TSO's activation profile directly, and the platform verifies delivery against that profile rather than against a roundtrip bound. Data frequency applies either way: the platform needs the telemetry to verify delivery and, for aFRR, to report it onward.
+
+For assets integrated through the Delegated Operators API:
+
+- **aFRR is always platform control.** The PICASSO signal arrives at Hybrid Greentech on a four-second cycle, so the platform relays it as activations.
+- **Every other market may be local.** FCR-family products are frequency-triggered and can be computed on site, provided the asset meets the TSO profile.
+
+Frequency-responsive markets under platform control require Hybrid Greentech's own frequency measurement and setpoint computation on site. Sub-second response cannot be closed over a cloud roundtrip: two transport legs alone consume 500 ms of FFR's 700 ms obligation.
+
+---
+
+## New obligations
+
+Some requirements on these pages are new or tighter than what your integration was built against. The most likely to affect you:
+
+- Available power up and down, and available energy up and down, are now required for batteries.
+- State of charge tightens from a 5 second to a 1 second bound.
+- Grid frequency becomes mandatory — not optional — for frequency-responsive markets.
+
+Existing integrations remain compliant until their next prequalification. New integrations meet these requirements from day one.
+
+---
+
+## Where to go next
+
+<CardGroup cols={3}>
+  <Card title="Market requirements" icon="gauge-high" href="/data-standards/markets">
+    Data frequency, roundtrip response, delivery lag, and TSO activation profiles per market.
+  </Card>
+  <Card title="Metrics" icon="list-check" href="/data-standards/metrics">
+    What each device type publishes, with types, units, and baseline rules.
+  </Card>
+  <Card title="Compliance" icon="clipboard-check" href="/data-standards/compliance">
+    How bounds are assessed, value integrity, clocks, transport, and prequalification.
+  </Card>
+</CardGroup>
