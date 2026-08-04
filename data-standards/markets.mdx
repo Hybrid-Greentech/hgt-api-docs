@@ -1,0 +1,91 @@
+---
+title: Market Requirements
+description: Data frequency, roundtrip response, and delivery lag for every market the HGT platform trades.
+---
+
+## Requirements per market
+
+Every bound below is a maximum. Publishing faster or responding sooner is always acceptable.
+
+| Market | Synchronous area | Data frequency | Roundtrip asset response | Delivery lag |
+|--------|------------------|----------------|--------------------------|--------------|
+| `ffr` | Nordic | 100 ms | 1.2 s | 250 ms |
+| `fcr-d` | Nordic | 1 s | 2 s | 250 ms |
+| `fcr-n` | Nordic | 1 s | 2 s | 250 ms |
+| `fcr` | Continental Europe | 1 s | 2 s | 250 ms |
+| `afrr` | Nordic, Continental Europe | 1 s | 2 s | 250 ms |
+| `mfrr` | Nordic, Continental Europe | 1 min | 2 min | 5 s |
+| `wholesale` | Nordic, Continental Europe | 1 min | 2 min | 5 s |
+
+An asset takes the bounds of the strictest market it is prequalified for, and holds them continuously. See [Requirement resolution](/data-standards/overview#requirement-resolution).
+
+`wholesale` covers day-ahead, intraday continuous, and intentional imbalance. All three settle over 15-minute periods, so they share one set of bounds.
+
+### Data frequency
+
+Data frequency is the maximum gap between consecutive samples of the same metric for the same asset. It applies to active power and to every metric that tracks it. Slow-moving state metrics carry their own fixed bounds, listed in [Metrics](/data-standards/metrics).
+
+Publish a sample on every interval, including when the value has not changed. The platform treats a gap in the stream as a fault, not as an unchanged value.
+
+Every metric is also **change-driven**: publish immediately when a value moves materially, without waiting for the next interval. The per-metric threshold for a material change is not yet published, so data frequency is the binding requirement until it is.
+
+### Roundtrip asset response
+
+Roundtrip asset response is the time from the platform publishing an activation to the platform receiving a measurement that shows the asset moving toward the commanded value.
+
+The bound covers command delivery and the **start** of the response. It does not require the ramp to be complete. An asset that begins responding within the bound and reaches the target over the following seconds meets this requirement. Ramp completion belongs to the TSO's activation profile, below.
+
+There is no acknowledgement message. The platform detects the response in the measurement stream you already publish.
+
+The bound applies only under platform control. Under local control the platform sends no setpoint, so there is nothing to measure from — see [Control topology](/data-standards/overview#control-topology).
+
+Sampling and delivery consume part of every roundtrip bound. Each row satisfies:
+
+$$\text{data frequency} + \text{delivery lag} < \text{roundtrip}$$
+
+What remains is the asset's own budget for deciding and actuating.
+
+### Delivery lag
+
+Delivery lag is `serverTimestamp − assetTimestamp`. The bound is the same whether the site connects to the broker directly or through your own cloud. It includes clock offset, so your time source must meet the accuracy in [Clocks](/data-standards/compliance#clocks).
+
+Slower markets carry a looser bound because their telemetry passes through more hops. An EV charger reports on its own OCPP schedule, which neither you nor the platform controls or observes before the charge point sends it.
+
+---
+
+## Price zones
+
+Market availability follows the synchronous area, not the individual price zone. A zone inherits every market its area offers.
+
+| Price zone | Synchronous area | Markets available |
+|------------|------------------|-------------------|
+| `DK1` | Continental Europe | `fcr`, `afrr`, `mfrr`, `wholesale` |
+| `DK2` | Nordic | `ffr`, `fcr-d`, `fcr-n`, `afrr`, `mfrr`, `wholesale` |
+
+Hybrid Greentech operates in `DK1` and `DK2`. Nordic products are harmonised across the area, so their bounds hold unchanged in any Nordic zone the platform adds later.
+
+<Warning>
+  `fcr` and `fcr-n` are not variants of one product. `fcr` is a Continental Europe product available in `DK1`; `fcr-n` is a Nordic product available in `DK2`. An asset cannot substitute one for the other.
+</Warning>
+
+---
+
+## TSO activation profiles
+
+Full activation obligations belong to the TSO. The roundtrip bound is Hybrid Greentech's own requirement, and it is deliberately tighter than the obligation it protects.
+
+| Market | Full activation obligation |
+|--------|----------------------------|
+| `ffr` | 0.7–1.3 s, depending on the variant and frequency threshold |
+| `fcr-d` | 86% of committed response within 7.5 s, and 3.2 seconds of energy within 7.5 s |
+| `fcr-n` | 63% within 60 s, 95% within 3 min |
+| `fcr` | Reaction within 30 s |
+| `afrr` | 5 min |
+| `mfrr` | 12.5 min |
+| `wholesale` | As fast as the asset allows |
+
+<Note>
+  These are the TSO's figures, not Hybrid Greentech's, and the TSO may revise them. For Denmark, confirm against Energinet's current product overview and prequalification documents before committing capacity.
+</Note>
+
+Meeting a roundtrip bound does not discharge the activation obligation. The roundtrip proves the asset started; the profile decides whether it delivered.

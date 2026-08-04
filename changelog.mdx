@@ -20,10 +20,45 @@ Entries are tagged by system.
 | `feature` | New capability added |
 | `fix` | Correction to existing behaviour |
 
+<Update label="August 3, 2026" tags={["delegated-operators", "feature", "deprecation", "breaking-change"]}>
+  ## Data standards now keyed on market
+
+  Telemetry and response requirements have moved to their own [Data Standards](/data-standards/overview) section and are now determined by the **market** an asset is prequalified for, rather than by its asset class. Device type still determines which metrics you publish; the market determines how fast they flow and how quickly the asset must answer a dispatch.
+
+  Requirements are resolved once, at prequalification, from the strictest market the asset is prequalified for. They do not change when a task starts or ends.
+
+  ### What this changes for your integration
+
+  - **New metrics.** Available power up and down are now required for every device type on the Delegated Operators API, not for batteries alone. Available energy up and down are required for batteries. See [Metrics](/data-standards/metrics).
+  - **State of charge tightens** from a 5 second to a 1 second bound.
+  - **Grid frequency is mandatory** for the frequency-responsive markets — FFR, FCR-D, FCR-N and FCR — rather than optional where a site happens to measure it.
+  - **Delivery lag is now per market.** It remains 250 ms for the fast markets and relaxes to 5 s for mFRR and wholesale.
+  - **Response bounds are per market**, and apply only when the platform issues activations. Under local control you answer to the TSO's activation profile directly.
+  - **`wholesale` replaces day-ahead, intraday continuous, and intentional imbalance** as a single market with one set of bounds.
+
+  Existing integrations remain compliant until their next prequalification. New integrations meet these requirements from day one.
+
+  ### Schema changes (v3.1.0)
+
+  All changes are additive. No topic, endpoint, or payload shape has changed, and no existing enum value has been removed.
+
+  - **`measurementType`** gains `availablePowerUp`, `availablePowerDown`, `availableEnergyUp`, `availableEnergyDown`, and `mfrrBaseline`.
+  - **`units`** gains `kWh`.
+  - **`taskType`** gains `ffr`, `fcr`, `mfrr`, and `wholesale`.
+  - **`powerDc`** is deprecated. It is diagnostic only and no longer part of the data requirements.
+  - **`dayahead`** is deprecated in favour of `wholesale`. The platform maps it, and the enum value remains so that existing publishers do not fail validation.
+
+  The EV charger and heat pump APIs are unchanged. The market bounds apply to them, using the metrics those APIs already define.
+
+  <Note>
+    `/delegated-operators/data-standards` now redirects to the new section.
+  </Note>
+</Update>
+
 <Update label="July 30, 2026" tags={["delegated-operators", "fix", "deprecation"]}>
   ## Data Standards page, telemetry rate fixes
 
-  The new [Data Standards](/delegated-operators/data-standards) page defines the telemetry rates and control-response requirements for the Delegated Operators integration. Where another page or diagram states a different rate, use the values on the Data Standards page.
+  The new [Data Standards](/data-standards/overview) section defines the telemetry rates and control-response requirements for the Delegated Operators integration. Where another page or diagram states a different rate, use the values in that section.
 
   No schema, topic, or endpoint has changed. If your integration already meets these rates, no action is required.
 </Update>

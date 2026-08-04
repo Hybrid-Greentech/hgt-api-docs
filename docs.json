@@ -39,8 +39,7 @@
             "pages": [
               "delegated-operators/welcome",
               "delegated-operators/quickstart",
-              "delegated-operators/operational-flow",
-              "delegated-operators/data-standards"
+              "delegated-operators/operational-flow"
             ]
           },
           {
@@ -104,6 +103,24 @@
         ]
       },
       {
+        "tab": "Data Standards",
+        "icon": "gauge-high",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": ["data-standards/overview"]
+          },
+          {
+            "group": "Requirements",
+            "pages": [
+              "data-standards/markets",
+              "data-standards/metrics",
+              "data-standards/compliance"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "API Reference",
         "icon": "puzzle-piece",
         "groups": [
@@ -136,6 +153,12 @@
       }
     ]
   },
+  "redirects": [
+    {
+      "source": "/delegated-operators/data-standards",
+      "destination": "/data-standards/overview"
+    }
+  ],
   "logo": {
     "light": "/logo/light.png",
     "dark": "/logo/dark.png"

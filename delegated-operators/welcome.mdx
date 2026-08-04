@@ -40,10 +40,10 @@ A typical integration follows this sequence:
   During active tasks, receive real-time power setpoints via the activation channel. Ramp the asset accordingly.
 
   ### Stream telemetry
-  Continuously publish measurements (power, frequency, SoC, aFRR baseline) on the measurements channel.
+  Continuously publish measurements (active power, available power and energy, SoC, grid frequency, and market baselines) on the measurements channel. Rates follow the market the asset is prequalified for — see [Data Standards](/data-standards/overview).
 
   ### Report completion
-  When a task window ends, send a `COMPLETED` (or `FAILED` / `INVALID`) task event. Report any operational issues on the events channel.
+  When a task window ends, send a `COMPLETED` (or `FAILED` / `INVALID`) task event. Report alarms, faults, and other operational events on the events channel.
 
   ### Monitor via REST
   Use `GET /v2/dispatch/tasks` to poll planned schedules and detect changes via `commitmentId`.
