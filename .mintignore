@@ -1,6 +1,15 @@
 # Mintlify automatically ignores these files and directories:
-# .git, .github, .claude, .agents, .idea, node_modules,
+# .git, .github, .claude, .agents, .idea, .vscode, node_modules,
+# build, dist, coverage, .cache, tmp, temp,
 # README.md, LICENSE.md, CHANGELOG.md, CONTRIBUTING.md
+
+# Internal only — never publish. These were reachable by URL until now:
+# /AGENTS, /CONTEXT, /docs/adr/0001-key-requirements-on-market
+AGENTS.md
+CLAUDE.md
+CONTEXT.md
+CONTEXT-MAP.md
+docs/adr/
 
 # Draft content
 drafts/
