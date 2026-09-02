@@ -162,17 +162,20 @@ Every MQTT topic follows this structure:
 |---------|---------|---------|
 | `priceZone` | Geographic market area | `DK1`, `SE3`, `NO2` |
 | `customerName` | Tenant namespace | `customer-abc-123` |
-| `channel` | Message type | `tasks`, `activation`, `measurements`, `events`, `tasks/events` |
+| `channel` | Message type | `tasks`, `activation`, `heartbeat`, `measurements`, `events`, `tasks/events` |
 | `assetId` | Individual asset (UUID) | `f47ac10b-58cc-...` |
 
 This hierarchy enables geographic grouping, multi-tenant isolation, and individual asset targeting in a single addressing scheme.
 
 ### Environments
 
-| Environment | Host                          | Notes                                           |
-| ----------- | ----------------------------- | ------------------------------------------------ |
-| Sandbox     | `aggregator.gridhub.dev:8883` | Simulated assets, no real grid interactions     |
-| Production  | `n1.link.gridhub.ai:8883`     | Real-time grid, strict security, production SLA |
+| Environment | Host                          | Transport                     | Notes                                           |
+| ----------- | ----------------------------- | ----------------------------- | ------------------------------------------------ |
+| Sandbox     | `aggregator.gridhub.dev:8883` | MQTT over TLS (TCP)           | Simulated assets, no real grid interactions     |
+| Production  | `n1.link.gridhub.ai:8883`     | MQTT over TLS (TCP)           | Real-time grid, strict security, production SLA |
+| Production  | `n1.link.gridhub.ai:8084`     | MQTT over WSS, path `/mqtt`   | WebSocket alternative to the TCP endpoint       |
+
+Sandbox accepts TCP only. Secure WebSockets are available in production only — request the `mqtt` subprotocol during the upgrade handshake and include the `/mqtt` path.
 
 ### Channels — platform to operator
 
@@ -215,12 +218,33 @@ Activation messages carry a real-time power setpoint tied to a specific market a
 
 ```json title="Activation message"
 {
-  "eventId": "string",
-  "timestamp": 1698422400000,
-  "task": "uuid",
-  "powerkW": 1500.0
+  "messageId": "01M1GST35A5N67FK9NNRF1JRJZ",
+  "status": "ACTIVE",
+  "timestamp": "2026-09-02T10:14:37.482913551Z",
+  "task": "a0766747-39b5-4258-9408-fcaef40690a1",
+  "setpoint": {
+    "value": 184.26373,
+    "unit": "kW"
+  }
 }
 ```
+
+`setpoint.value` is signed and follows the generator convention: export is positive, import is negative. A setpoint of `0` deactivates the asset — the platform sends no separate stop message, and `status` is always `ACTIVE`, so don't branch on it.
+
+#### Heartbeat
+
+**Topic:** `{priceZone}/{customerName}/heartbeat/{assetId}`
+
+The platform publishes a heartbeat for every asset once per second. Use it to confirm the link is live while no activation is in flight.
+
+```json title="Heartbeat message"
+{
+  "eventId": "01M1GST35ATGXHDA0GTTASWP5B",
+  "value": 0
+}
+```
+
+`value` alternates between `0` and `1` on consecutive heartbeats and carries no other meaning.
 
 ### Channels — operator to platform
 

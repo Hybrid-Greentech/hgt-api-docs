@@ -68,6 +68,30 @@ _Avoid_: delegated control, autonomous control, edge control
 An arrangement where the platform computes the response and issues activations, and the asset executes them.
 _Avoid_: central control, remote control, cloud control
 
+**Activation**:
+A real-time dispatch command instructing an asset to move to a single power setpoint now. Always issued inside a task.
+_Avoid_: dispatch, command, signal, event
+
+**Setpoint**:
+The signed power value an activation commands, in the generator convention where export is positive and import is negative.
+_Avoid_: power value, target, output
+
+**Deactivation**:
+The end of an activation, expressed as a setpoint of zero rather than as a separate message or a change of state.
+_Avoid_: release, stop, cancellation, inactive
+
+**Task**:
+The planned window inside which activations may occur, naming the market to deliver and the magnitude committed.
+_Avoid_: job, schedule, booking, session
+
+**Heartbeat**:
+A periodic liveness signal the platform publishes for each asset, carrying no dispatch meaning.
+_Avoid_: keepalive, ping, health check
+
+**Site**:
+A physical location owning one or more assets. The unit the published documentation calls an Individual Site.
+_Avoid_: plant, installation, location, facility
+
 ### Integration surfaces
 
 These three names are internal shorthand for how equipment reaches the platform. The published documentation uses the navigation labels instead — Individual Sites, Distributed Energy Resources, and OEM Integration.

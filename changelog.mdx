@@ -20,6 +20,37 @@ Entries are tagged by system.
 | `feature` | New capability added |
 | `fix` | Correction to existing behaviour |
 
+<Update label="September 2, 2026" tags={["delegated-operators", "fix", "feature", "breaking-change"]}>
+  ## Activation reference corrected, heartbeat documented
+
+  The Activations reference did not describe the messages the platform actually publishes. Four of its five fields were wrong. The wire itself has not changed — this is a correction to the documentation, not to the API — but code written against the previous reference will not parse a real activation.
+
+  ### Corrected activation payload (v3.2.0)
+
+  | Previously documented | Actual field |
+  |-----------------------|--------------|
+  | `eventId` (string) | `messageId` — a ULID, generated per message |
+  | `timestamp` (integer, epoch milliseconds) | `timestamp` — an RFC 3339 timestamp in UTC |
+  | `powerkW` (number) | `setpoint.value`, with `setpoint.unit` always `kW` |
+  | not documented | `status` — always `ACTIVE` |
+
+  All five fields are always present. The reference previously marked only `timestamp` and `task` as required. `task` no longer declares a UUID format, because the platform sends it as an opaque string.
+
+  - **`setpoint.value` is signed.** It follows the generator convention: export is positive, import is negative.
+  - **A setpoint of `0` deactivates the asset.** There is no separate stop message and no change of status.
+  - **`status` is always `ACTIVE`.** It is retained for backward compatibility and never varies. Don't branch on it.
+
+  ### Heartbeat channel
+
+  The platform publishes a heartbeat for every asset once per second on `{priceZone}/{customerName}/heartbeat/{assetId}`, carrying an `eventId` and a `value` that alternates between `0` and `1`. This channel already existed but was never documented. No action is required.
+
+  ### Transports
+
+  Production accepts MQTT over TLS on TCP at `n1.link.gridhub.ai:8883`, and MQTT over secure WebSockets at `wss://n1.link.gridhub.ai:8084/mqtt`. Sandbox accepts TCP only. The reference previously declared the `mqtt` scheme for both environments, which implied an unencrypted connection on the TLS port.
+
+  Timestamps on the task, task event, event, and measurement channels are unchanged and remain integer epoch milliseconds. Only activations carry RFC 3339.
+</Update>
+
 <Update label="August 3, 2026" tags={["delegated-operators", "feature", "deprecation", "breaking-change"]}>
   ## Data standards now keyed on market
 

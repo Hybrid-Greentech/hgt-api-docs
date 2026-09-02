@@ -93,10 +93,13 @@ The query window uses a half-open interval (`from <= fromTime < to`) and is capp
 
 MQTT credentials are per-customer and are generated during the initial asset registration. Connect each edge device to the broker and subscribe to its task and activation topics.
 
-| Environment | Host                     | Port   |
-| ----------- | ------------------------ | ------ |
-| Sandbox     | `aggregator.gridhub.dev` | `8883` |
-| Production  | `n1.link.gridhub.ai`     | `8883` |
+| Environment | Host                     | Port   | Transport                   |
+| ----------- | ------------------------ | ------ | --------------------------- |
+| Sandbox     | `aggregator.gridhub.dev` | `8883` | MQTT over TLS (TCP)         |
+| Production  | `n1.link.gridhub.ai`     | `8883` | MQTT over TLS (TCP)         |
+| Production  | `n1.link.gridhub.ai`     | `8084` | MQTT over WSS, path `/mqtt` |
+
+Sandbox accepts TCP only. Secure WebSockets are available in production only — request the `mqtt` subprotocol and include the `/mqtt` path. Use TLS 1.2 or later.
 
 Every topic follows this structure:
 
@@ -109,6 +112,7 @@ Subscribe to these channels per asset immediately after connecting:
 ```
 {priceZone}/{customerName}/tasks/{assetId}
 {priceZone}/{customerName}/activation/{assetId}
+{priceZone}/{customerName}/heartbeat/{assetId}
 ```
 
 ---
@@ -198,14 +202,20 @@ Activations are delivered at QoS 1, so a reconnection can deliver a setpoint tha
 
 ```json title="Activation message"
 {
-  "eventId": "uuid",
-  "timestamp": 1698422400000,
-  "task": "uuid",
-  "powerkW": 1500.0
+  "messageId": "01M1GST35A5N67FK9NNRF1JRJZ",
+  "status": "ACTIVE",
+  "timestamp": "2026-09-02T10:14:37.482913551Z",
+  "task": "a0766747-39b5-4258-9408-fcaef40690a1",
+  "setpoint": {
+    "value": 184.26373,
+    "unit": "kW"
+  }
 }
 ```
 
 The `task` field ties the activation to its parent task. Activations may arrive at any point inside `[startTime, endTime]` from the task.
+
+`setpoint.value` is signed and follows the generator convention: export is positive, import is negative. A setpoint of `0` deactivates the asset — there is no separate stop message. `status` is always `ACTIVE`; don't branch on it.
 
 ---
 
