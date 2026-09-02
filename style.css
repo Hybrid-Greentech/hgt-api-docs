@@ -1,0 +1,36 @@
+/* Mintlify renders every AsyncAPI page as WebSocket documentation and hardcodes an
+   orange "WSS" protocol badge. It is not derived from servers[].protocol: the
+   ev-charger and heat-pump specs declare `mqtts` and still render "WSS".
+   Every AsyncAPI spec on this site is MQTT, so relabel the badge site-wide.
+
+   Selectors verified against the rendered DOM:
+     sidebar -> span.method-nav-pill > span
+     header  -> div.method-pill (leaf element, holds the text itself)
+
+   WARNING: `.method-pill` and `.method-nav-pill` are also used for HTTP method
+   badges (GET, POST, ...) on OpenAPI pages. This site has no OpenAPI spec today.
+   If a REST specification is ever added to docs.json, scope these rules to the
+   AsyncAPI paths first, or every HTTP verb will read "MQTT".
+
+   Remove this file if Mintlify ever honours the declared protocol. */
+
+.method-nav-pill > span,
+.method-pill {
+  font-size: 0 !important;
+}
+
+.method-nav-pill > span::after {
+  content: "MQTT";
+  font-size: 0.55rem;
+  line-height: 1.1;
+}
+
+.method-pill::after {
+  content: "MQTT";
+  font-size: 0.625rem;
+  line-height: 1.1;
+}
+
+.method-nav-pill {
+  width: auto !important;
+}

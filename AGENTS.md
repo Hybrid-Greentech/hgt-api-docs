@@ -29,6 +29,19 @@
 - Bold for UI elements: Click **Settings**
 - Code formatting for file names, commands, paths, and code references
 
+### API reference language
+
+Schema and field descriptions in `api-reference/asyncapi/` follow the Stripe API reference voice:
+
+- Describe fields declaratively, in the third person: "Unique identifier for the activation message." Not "You receive an ID."
+- Open with a noun phrase naming the value, then add constraints in the sentences that follow: "Time at which the activation was generated. Formatted as an RFC 3339 timestamp in UTC."
+- State units, formats, sign conventions, and ranges explicitly, each in its own sentence.
+- Write full sentences ending in a period, even for a one-line description.
+- Document the wire, not the intent. A field that exists but never varies is documented as constant, with a note not to branch on it.
+- Put enumerated and literal values in backticks: "Always `ACTIVE`."
+- Don't sell, hedge, or explain platform internals. Say what the value is and what the integrator does with it.
+- Second person belongs in the MDX guides, which describe flow and policy. The reference describes data.
+
 ## Content boundaries
 
 - Document the three real-time integration surfaces (Delegated Operators, EV Chargers, Heat Pumps) and the OEM/PPC direct-hardware path. Don't document internal dashboard/reporting features — those are mentioned only as "available via our dashboard platform", never detailed here.

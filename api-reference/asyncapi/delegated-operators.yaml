@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Delegated Operator - Management and Monitoring API
-  version: v3.1.0
+  version: v3.2.0
   description: >
     Real-time API for managing and monitoring distributed energy resources
     (DERs) including batteries, solar installations, and other grid-connected
@@ -17,22 +17,30 @@ defaultContentType: application/json
 servers:
   sandbox:
     host: aggregator.gridhub.dev:8883
-    protocol: mqtt
+    protocol: mqtts
     description: |
-      Sandbox environment for testing and integration
-      - Simulated assets available
-      - No real grid interactions
-      - Perfect for development and testing
+      Sandbox environment for testing and integration. Carries MQTT over TLS on TCP.
+      Simulated assets only, with no real grid interactions. Secure WebSockets are not
+      available in sandbox. Use TLS 1.2 or later.
     security:
       - $ref: '#/components/securitySchemes/user-password'
   production:
     host: n1.link.gridhub.ai:8883
-    protocol: mqtt
+    protocol: mqtts
     description: |
-      Production environment for real asset operations
-      - Real-time grid interactions
-      - Strict security enforcement
-      - Production SLA guarantees
+      Production environment, carrying MQTT over TLS on TCP. Real-time grid
+      interactions, strict security enforcement, and production SLA guarantees. Use
+      TLS 1.2 or later.
+    security:
+      - $ref: '#/components/securitySchemes/user-password'
+  production-websockets:
+    host: n1.link.gridhub.ai:8084
+    pathname: /mqtt
+    protocol: wss
+    description: |
+      Production environment, carrying MQTT over secure WebSockets. Request the `mqtt`
+      WebSocket subprotocol during the upgrade handshake. The path is required.
+      Available in production only.
     security:
       - $ref: '#/components/securitySchemes/user-password'
 channels:
@@ -41,6 +49,11 @@ channels:
     messages:
       onActivation.message:
         $ref: '#/components/messages/activationMessage'
+  Heartbeat:
+    address: '{priceZone}/{customerName}/heartbeat/{assetId}'
+    messages:
+      onHeartbeat.message:
+        $ref: '#/components/messages/heartbeatMessage'
   Events:
     address: '{priceZone}/{customerName}/events/{assetId}'
     messages:
@@ -84,6 +97,16 @@ operations:
     summary: Activation Message
     description: |
       Activation messages sent with a power value that indicates a power activation that needs to take place for a specific market
+  onHeartbeat:
+    action: receive
+    channel:
+      $ref: '#/channels/Heartbeat'
+    messages:
+      - $ref: '#/channels/Heartbeat/messages/onHeartbeat.message'
+    summary: Heartbeat Message
+    description: |
+      Liveness signal published once per second for every asset. Confirms that the
+      platform's link to the asset is live between activations.
   onEvent:
     action: send
     channel:
@@ -284,23 +307,75 @@ components:
             ULID formatted string
         payload:
           $ref: '#/components/schemas/eventPayload'
+    activationSetpoint:
+      type: object
+      properties:
+        value:
+          type: number
+          format: float
+          description: |
+            Power setpoint the asset must move to. Follows the generator sign
+            convention, where export is positive and import is negative. A value of
+            `0` deactivates the asset. Serialised from a 32-bit float, so about seven
+            significant digits are meaningful.
+        unit:
+          type: string
+          description: |
+            Unit of `value`. Always `kW`.
+      required:
+        - value
+        - unit
     activationPayload:
+      type: object
+      properties:
+        messageId:
+          type: string
+          description: |
+            Unique identifier for the activation message. Generated per message as a
+            ULID. Use it to discard redeliveries.
+        status:
+          type: string
+          description: |
+            Always `ACTIVE`. Retained for backward compatibility and never varies.
+            Deactivation is expressed as a `setpoint.value` of `0`, not as a change of
+            status. Don't branch on this value.
+        timestamp:
+          type: string
+          format: date-time
+          description: |
+            Time at which the activation was generated. Formatted as an RFC 3339
+            timestamp in UTC. The number of fractional-second digits is not fixed.
+        task:
+          type: string
+          description: |
+            Identifier of the task this activation delivers. Matches the `taskId` of a
+            task previously dispatched on the tasks channel.
+        setpoint:
+          $ref: '#/components/schemas/activationSetpoint'
+      required:
+        - messageId
+        - status
+        - timestamp
+        - task
+        - setpoint
+    heartbeatPayload:
       type: object
       properties:
         eventId:
           type: string
-        timestamp:
-          type: integer
-        task:
-          type: string
-          format: uuid
-        powerkW:
-          type: number
           description: |
-            power measurement that corresponds to a specific activation
+            Unique identifier for the heartbeat message. Generated per message as a
+            ULID.
+        value:
+          type: number
+          format: float
+          description: |
+            Alternates between `0` and `1` on consecutive heartbeats, starting at `0`.
+            The value carries no information beyond separating a fresh heartbeat from a
+            repeated payload.
       required:
-        - timestamp
-        - task
+        - eventId
+        - value
     measurementPayload:
       type: object
       properties:
@@ -378,6 +453,55 @@ components:
       contentType: application/json
       payload:
         $ref: '#/components/schemas/activationPayload'
+      examples:
+        - name: exportActivation
+          summary: Export setpoint during an active task
+          payload:
+            messageId: 01M1GST35A5N67FK9NNRF1JRJZ
+            status: ACTIVE
+            timestamp: '2026-09-02T10:14:37.482913551Z'
+            task: a0766747-39b5-4258-9408-fcaef40690a1
+            setpoint:
+              value: 184.26373
+              unit: kW
+        - name: importActivation
+          summary: Import setpoint on the same task
+          payload:
+            messageId: 01M1GST35A3BWM0NNWAHTP34QP
+            status: ACTIVE
+            timestamp: '2026-09-02T10:14:41.907442183Z'
+            task: a0766747-39b5-4258-9408-fcaef40690a1
+            setpoint:
+              value: -96.4812
+              unit: kW
+        - name: deactivation
+          summary: Zero setpoint releasing the asset
+          payload:
+            messageId: 01M1GST35A7D7YSZPJ8W16015M
+            status: ACTIVE
+            timestamp: '2026-09-02T10:15:02.118764025Z'
+            task: a0766747-39b5-4258-9408-fcaef40690a1
+            setpoint:
+              value: 0
+              unit: kW
+    heartbeatMessage:
+      name: Heartbeat Message
+      title: Heartbeat Message
+      description: Liveness signal published once per second for every asset
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/heartbeatPayload'
+      examples:
+        - name: heartbeat
+          summary: A single heartbeat
+          payload:
+            eventId: 01M1GST35ATGXHDA0GTTASWP5B
+            value: 0
+        - name: nextHeartbeat
+          summary: The following heartbeat, one second later
+          payload:
+            eventId: 01M1GST35ATP0A4SXDJ91M6EXD
+            value: 1
     onTaskEventMessage:
       name: On Task Event Message
       title: Task Event Message
@@ -399,6 +523,18 @@ components:
       contentType: application/json
       payload:
         $ref: '#/components/schemas/measurementMessagePayload'
+      examples:
+        - name: powerAc
+          summary: AC power measurement from the site meter
+          payload:
+            assetId: ddd80e3e-bb64-4130-b3cb-fef4c2d949fe
+            eventId: 01M1GST35APXKNTBYRZY57BX69
+            measurementType: powerAc
+            payload:
+              assetTimestamp: 1788344077482
+              serverTimestamp: 1788344077549
+              value: 183.91274
+              unit: kW
     taskMessage:
       name: taskMessage
       title: Task Assignment Message
