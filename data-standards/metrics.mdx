@@ -1,20 +1,21 @@
 ---
 title: Metrics
-description: Which metrics each device type publishes, with types, units, and baseline rules.
+description: Which metrics each device type and resource type publishes, with types, units, and baseline rules.
 ---
 
 ## Reading these tables
 
-Device type decides **which** metrics you publish. The market decides **how fast** most of them flow. Where a bound below says "market data frequency", look the value up in [Market requirements](/data-standards/markets).
+Device type decides **which** metrics an asset publishes, and resource type decides which metrics a resource publishes. The market decides **how fast** most of them flow. Where a bound below says "market data frequency", look the value up in [Market requirements](/data-standards/markets).
 
-The `measurementType` names below are the ones the Delegated Operators API defines. EV chargers and heat pumps publish the metrics their own APIs name — see [EV chargers and heat pumps](#ev-chargers-and-heat-pumps).
+Sections up to [Baseline power](#baseline-power) name the metrics of the Delegated Operators API, keyed on device type. [Distributed energy resources](#distributed-energy-resources) names the resource registry, keyed on resource type. The two surfaces are separate: they name some quantities differently — active power is `powerAc` on an asset and `measuredPower` on a resource — and neither one's obligations extend to the other.
 
-Publish one measurement per message. The `measurementMessage` schema carries a single `measurementType` and a single value. The platform does not accept batched payloads.
+Publish one measurement per message. Both surfaces carry a single `measurementType` and a single value per message. The platform does not accept batched payloads.
 
-The measurements channel is addressed per asset:
+The measurements channel is addressed per asset or per resource:
 
 ```
 {priceZone}/{customerName}/measurements/{assetId}
+{priceZone}/{customerName}/v2/measurements/{resourceId}
 ```
 
 ---
@@ -108,22 +109,42 @@ Document your estimation method during onboarding. The platform cannot audit an 
 
 ---
 
-## EV chargers and heat pumps
+## Distributed energy resources
 
-These integrations keep the metrics their own APIs define. The bounds on [Market requirements](/data-standards/markets) apply to them; the metric set does not change. The available power requirement in [Every device type](#every-device-type) is scoped to the Delegated Operators API and does not extend to these two surfaces.
+Resources publish a registry of eight metrics on the `measurements` channel, keyed on **resource type**. Every metric carries one `measurementType` and one `value` per message.
 
-| Integration | Publishes | Reference |
-|-------------|-----------|-----------|
-| EV chargers | Active power, as `power_kw` on the power channel | [EV Chargers](/ev-chargers/quickstart) |
-| Heat pumps | Upward and downward availability, as `availableUpKw` and `availableDownKw` | [Heat Pumps](/heat-pumps/quickstart) |
+| Metric | `measurementType` | Type | Unit | Periodic bound | Change threshold |
+|--------|-------------------|------|------|----------------|------------------|
+| Measured power | `measuredPower` | Float, signed | kW | Market data frequency | ±1 kW |
+| Available power up | `availablePowerUp` | Float, unsigned | kW | Market data frequency | ±1 kW |
+| Available power down | `availablePowerDown` | Float, unsigned | kW | Market data frequency | ±1 kW |
+| Site import | `siteImport` | Float, unsigned | kW | 1 s | ±1 kW |
+| Site export | `siteExport` | Float, unsigned | kW | 1 s | ±1 kW |
+| State of charge | `stateOfCharge` | Float, 0–100 inclusive | % | 1 s | Periodic only |
+| Available energy up | `availableEnergyUp` | Float, unsigned | kWh | 1 s | Periodic only |
+| Available energy down | `availableEnergyDown` | Float, unsigned | kWh | 1 s | Periodic only |
 
-A heat pump publishes no active power. Its response to an activation appears in its availability values and in the `ActivatedUp` and `ActivatedDown` status events. The platform assesses the roundtrip bound against those rather than against a power movement.
+The obligation is additive:
 
-The EV charger API defines no availability fields, so an EV charger publishes active power only. Available power up and down are excluded on that surface rather than added to the API.
+| `resourceType` | Publishes |
+|----------------|-----------|
+| `evCharger` | Measured power, available power up, available power down |
+| `heatPump` | The above, plus site import and site export |
+| `bess` | The above, plus state of charge, available energy up, and available energy down |
 
-<Note>
-  A heat pump's availability values describe its capacity to shift consumption. They are not the same quantity as a battery's available power up and down, and the two are not interchangeable in settlement.
-</Note>
+The change threshold is an absolute ±1 kW, with no percentage floor. It obliges an **additional** immediate sample and does not reset the interval: a sample is still due at the periodic bound even when the value has not moved.
+
+`measuredPower` is signed on the generator convention — export positive, import negative — and is mandatory for every resource type. Available power is headroom from the current operating point, so a setpoint is only interpretable against a measured position.
+
+`siteImport` and `siteExport` describe the site's metered connection point rather than the resource. They exist for monitoring and settlement and are **not** a dispatch input: available power is the authoritative dispatch limit. The platform does not track which resources share a site, so co-sited resources carry no cross-resource consistency obligation.
+
+EV chargers are exempt from site import and export, because an OCPP backend typically has no site-meter access.
+
+<Warning>
+  `stateOfCharge`, `availableEnergyUp`, and `availableEnergyDown` are not derivable from one another. Reservations outside the platform's control move the usable floor and ceiling independently of the state of charge. Publish all three as sampled values.
+</Warning>
+
+Resources on the deprecated v1 EV charger and heat pump APIs keep the metrics those specs define. See [Migrating to v2](/distributed-resources/migration) for the field mapping, including the sign flip on EV active power and the recomputation of heat pump downward capability.
 
 ---
 

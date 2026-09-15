@@ -75,6 +75,8 @@ An `assetTimestamp` later than its `serverTimestamp` indicates a clock fault on 
 
 ## Transport
 
+Asset channels, on the Delegated Operators API:
+
 | Channel | Direction | QoS |
 |---------|-----------|-----|
 | `measurements` | Operator to platform | 0 |
@@ -83,16 +85,26 @@ An `assetTimestamp` later than its `serverTimestamp` indicates a clock fault on 
 | `tasks` | Platform to operator | 1 |
 | `activation` | Platform to operator | 1 |
 
-Measurements use QoS 0 because a sample redelivered by a broker retry has already breached its delivery lag and cannot be used for control or settlement. Events and task events are low-rate and individually meaningful, so the platform delivers them at least once.
+Resource channels, on the `v2` distributed energy resources API:
 
-The `measurements` channel has two additional requirements:
+| Channel | Direction | QoS |
+|---------|-----------|-----|
+| `register` | Resource to platform | 1 |
+| `update` | Resource to platform | 1 |
+| `measurements` | Resource to platform | 0 |
+| `events` | Resource to platform | 1 |
+| `activation` | Platform to resource | 1 |
+| `acknowledgement` | Resource to platform | 1 |
 
-- **Do not publish retained messages.** A retained power value appears live to any new subscriber.
-- **Use a clean session.** A reconnecting site must not deliver a backlog of samples that are already outside the delivery lag bound.
+No channel on either surface uses retained messages.
+
+Measurements use QoS 0 because a sample redelivered by a broker retry has already breached its delivery lag and cannot be used for control or settlement. Everything else is low-rate and individually meaningful, so the platform delivers it at least once.
+
+The `measurements` channel on both surfaces carries one additional requirement beyond QoS: **use a clean session**. A reconnecting site or resource must not deliver a backlog of samples that are already outside the delivery lag bound.
 
 ### Stale activations
 
 Activations are delivered at QoS 1, so after a reconnection the broker can deliver a setpoint that is several seconds old. Discard an activation if either of the following is true:
 
-- Its `timestamp` is older on receipt than the roundtrip bound for the asset's market.
-- A newer activation for the same task has already been applied.
+- Its timestamp is older on receipt than the roundtrip bound for the market — `timestamp` on an asset activation, `serverTimestamp` on a resource activation.
+- A newer activation has already been applied: for the same task on an asset, or for the same resource on a resource.

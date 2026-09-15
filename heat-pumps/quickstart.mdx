@@ -3,6 +3,10 @@ title: Heat Pump Quickstart
 description: Connect heat pump DERs to the HGT platform and start receiving activations.
 ---
 
+<Warning>
+  This API is deprecated. New integrations use the [Distributed Energy Resources API](/distributed-resources/quickstart) on the `v2` topic prefix. This version stays fully operational for existing integrations and no sunset date is set. See [Migrating to v2](/distributed-resources/migration).
+</Warning>
+
 ## Overview
 
 This guide covers integrating a heat pump as a distributed energy resource (DER) with the HGT platform. The integration is MQTT-only over a persistent MQTTS connection. Compared to EV chargers, the heat pump integration is simpler: activations use a directional model (up/down/release) rather than power limits, and there are no acknowledgements required.

@@ -5,8 +5,8 @@ The language used to describe how third parties integrate assets with the Hybrid
 ## Language
 
 **Device type**:
-The class of equipment being dispatched, which determines the set of metrics it must publish. Provisional canonical term spanning both the delegated-operator classes and the DER types.
-_Avoid_: asset class, resource type, equipment type
+The class of equipment being dispatched, which determines the set of metrics it must publish. Scoped to assets; the resource-side equivalent is **resource type**.
+_Avoid_: asset class, equipment type
 
 **Market**:
 The ancillary-service or energy product an asset is delivering, which determines how fast its data must flow and how fast it must answer a dispatch.
@@ -28,6 +28,14 @@ _Avoid_: grid, system, TSO area
 A single named quantity an asset publishes to the platform, with one type and one unit.
 _Avoid_: measurement type, signal, telemetry field
 
+**Active power**:
+The instantaneous real power an asset is exchanging with the grid. The resource-side equivalent is **measured power**.
+_Avoid_: measured power, real power, AC power
+
+**Measured power**:
+The instantaneous power a resource is drawing or delivering, signed so that export is positive. The position every setpoint and every headroom value is read against, and the reason it is published even by equipment whose response could be inferred elsewhere. The asset-side equivalent is **active power**.
+_Avoid_: raw power, power reading, consumption
+
 **Power-domain metric**:
 A metric tracking the asset's instantaneous power behaviour or its instantaneous power capability, and therefore carrying the market's timing obligation.
 _Avoid_: fast metric
@@ -43,6 +51,10 @@ _Avoid_: charge, positive, increase
 **Down**:
 The downward-regulation direction: the asset absorbs more power from the grid, by charging or by increasing consumption.
 _Avoid_: discharge, negative, decrease
+
+**Available power up / Available power down**:
+The additional power a resource can still deliver in each direction, measured from its current operating point rather than from zero. Headroom, not a rating. It falls to zero when a constraint outside the platform's control has already claimed the capability, and it never exceeds what the equipment can physically reach.
+_Avoid_: capacity, availability, flexibility, rated power, nameplate
 
 **Data frequency**:
 The periodic bound on a metric, expressed as a maximum gap between consecutive published samples. It coexists with the change threshold; neither replaces the other.
@@ -69,7 +81,7 @@ An arrangement where the platform computes the response and issues activations, 
 _Avoid_: central control, remote control, cloud control
 
 **Activation**:
-A real-time dispatch command instructing an asset to move to a single power setpoint now. Always issued inside a task.
+A real-time dispatch command instructing equipment to move to a single power setpoint now. On the asset surface it is always issued inside a task; on the resource surface it stands alone, and carries its own expiry instead.
 _Avoid_: dispatch, command, signal, event
 
 **Setpoint**:
@@ -77,8 +89,16 @@ The signed power value an activation commands, in the generator convention where
 _Avoid_: power value, target, output
 
 **Deactivation**:
-The end of an activation, expressed as a setpoint of zero rather than as a separate message or a change of state.
-_Avoid_: release, stop, cancellation, inactive
+The end of an activation on the asset surface, expressed as a setpoint of zero rather than as a separate message or a change of state.
+_Avoid_: stop, cancellation, inactive
+
+**Release**:
+The end of an activation on the resource surface, expressed as its own command that returns the resource to its own control logic. Deliberately not a setpoint of zero, because zero power is itself a valid instruction to a resource that can only consume.
+_Avoid_: deactivation, clear, stop, idle
+
+**Control granularity**:
+The set of setpoints a resource can actually reach — continuous, fixed steps, or on and off only. Declared once at registration, and the reason a commanded setpoint and the power that follows it may legitimately differ.
+_Avoid_: resolution, precision, step size
 
 **Task**:
 The planned window inside which activations may occur, naming the market to deliver and the magnitude committed.
@@ -89,8 +109,12 @@ A periodic liveness signal the platform publishes for each asset, carrying no di
 _Avoid_: keepalive, ping, health check
 
 **Site**:
-A physical location owning one or more assets. The unit the published documentation calls an Individual Site.
+A physical location owning one or more resources or assets. Distinct from the Individual Sites integration surface, which names a control arrangement rather than a place.
 _Avoid_: plant, installation, location, facility
+
+**Site import / Site export**:
+The power flowing into and out of a site at its metered connection point. A shared physical fact about the site rather than about any one resource, and reported for monitoring and settlement rather than as a dispatch limit.
+_Avoid_: grid power, net power, meter power
 
 ### Integration surfaces
 
@@ -109,9 +133,29 @@ An integration where the platform drives equipment itself over an industrial pro
 _Avoid_: PPC integration, hardware integration
 
 **Resource**:
-A single dispatchable device within a delegated portfolio, identified by `resourceId`.
+A single distributed energy resource the platform dispatches individually, identified by `resourceId`. One of many like-typed devices a third party offers to the platform. Deliberately not an **asset**.
 _Avoid_: asset, device, unit
 
 **Asset**:
-A single dispatchable installation under delegated or direct control, identified by `assetId`.
+A single dispatchable installation under delegated or direct control, identified by `assetId`. Deliberately not a **resource**, and the two are never interchangeable in dispatch or settlement.
 _Avoid_: resource, site, plant
+
+**Resource type**:
+The class of a resource, which determines the metrics it must publish and the configuration it declares at registration. Currently EV charger, heat pump, and BESS, and the list grows as new classes are onboarded. The asset-side equivalent is **device type**.
+_Avoid_: device type, asset class, DER type
+
+**Resource portfolio**:
+A group of resources of a single resource type, offered by one third party. Resources at one site may sit in different portfolios, and a portfolio spans many sites. Distinct from **delegated portfolio**, which names an integration arrangement rather than a grouping.
+_Avoid_: fleet, aggregation, cluster
+
+**Resource state**:
+The dispatch-relevant condition of a resource, drawn from a set small enough to mean the same thing for every resource type. Deliberately not the equipment's own operating vocabulary, which describes a session rather than a readiness to be dispatched.
+_Avoid_: status, availability, OCPP status
+
+**Charging session state**:
+The state of a charging session as the charge point's own protocol reports it. Carried alongside **resource state** rather than inside it, because it describes what a vehicle and a charger are doing together, not whether the resource can be dispatched.
+_Avoid_: status, resource state, OCPP status
+
+**Acknowledgement**:
+A resource's answer to a single activation, carrying whether it was accepted and, when it was not, why. It exists on the resource surface because a refusal and a lost link look identical in a measurement stream. Assets have no equivalent; their response is inferred from measurements alone.
+_Avoid_: ack, response, confirmation, receipt
