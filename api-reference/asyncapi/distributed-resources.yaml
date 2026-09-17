@@ -28,10 +28,8 @@ servers:
     host: aggregator.gridhub.dev:8883
     protocol: mqtts
     description: |
-      Sandbox environment for testing and integration
-      - Simulated assets available
-      - No real grid interactions
-      - Perfect for development and testing
+      Sandbox environment for testing and integration. Carries MQTT over TLS on TCP.
+      Simulated resources only, with no real grid interactions. Use TLS 1.2 or later.
     security:
       - $ref: '#/components/securitySchemes/user-password'
     bindings:
@@ -42,10 +40,8 @@ servers:
     host: n1.link.gridhub.ai:8883
     protocol: mqtts
     description: |
-      Production environment for real asset operations
-      - Real-time grid interactions
-      - Strict security enforcement
-      - Production SLA guarantees
+      Production environment, carrying MQTT over TLS on TCP. Real grid interactions.
+      Use TLS 1.2 or later.
     security:
       - $ref: '#/components/securitySchemes/user-password'
     bindings:
@@ -605,7 +601,7 @@ components:
       description: |
         The setpoints the resource can actually reach. The platform applies the
         nearest reachable value when a commanded setpoint falls between them, so a
-        commanded setpoint and the power that follows it may legitimately differ.
+        commanded setpoint and the power that follows it can differ.
       oneOf:
         - $ref: '#/components/schemas/continuousControlGranularity'
         - $ref: '#/components/schemas/steppedControlGranularity'
@@ -670,23 +666,23 @@ components:
         minSoc:
           type: number
           description: |
-            Lowest state of charge the battery may reach, in `%`. Ranges from `0` to
-            `100` inclusive.
+            Lowest state of charge the battery is permitted to reach, in `%`. Ranges
+            from `0` to `100` inclusive.
         maxSoc:
           type: number
           description: |
-            Highest state of charge the battery may reach, in `%`. Ranges from `0` to
-            `100` inclusive, and above `minSoc`.
+            Highest state of charge the battery is permitted to reach, in `%`. Ranges
+            from `0` to `100` inclusive, and above `minSoc`.
         chargeEfficiency:
           type: number
           description: |
-            Round-trip charging efficiency as a fraction. Ranges from `0` to `1`
-            inclusive.
+            Charging efficiency as a fraction, in one direction only. Ranges from `0`
+            to `1` inclusive.
         dischargeEfficiency:
           type: number
           description: |
-            Round-trip discharging efficiency as a fraction. Ranges from `0` to `1`
-            inclusive.
+            Discharging efficiency as a fraction, in one direction only. Ranges from
+            `0` to `1` inclusive.
       required:
         - powerRatedKw
         - powerUsableKw
@@ -753,9 +749,8 @@ components:
           type: array
           description: |
             The array's module groups, one per orientation. A roof with two faces
-            declares two groups. Their combined `capacityKwp` may exceed
-            `maxExportKw`, since an array larger than its inverter is normal and the
-            surplus is clipped.
+            declares two groups. Their combined `capacityKwp` can exceed
+            `maxExportKw`, and the surplus is clipped.
           minItems: 1
           items:
             $ref: '#/components/schemas/moduleGroup'
@@ -1290,7 +1285,7 @@ components:
     measurementMessage:
       name: Measurement
       title: Measurement Message
-      description: One metric value for one resource
+      description: One metric value for one resource.
       contentType: application/json
       payload:
         $ref: '#/components/schemas/measurementPayload'
@@ -1338,7 +1333,7 @@ components:
     eventMessage:
       name: Event
       title: Event Message
-      description: A state transition, alarm, or fault on one resource
+      description: A state transition, alarm, or fault on one resource.
       contentType: application/json
       payload:
         $ref: '#/components/schemas/eventPayload'
@@ -1439,7 +1434,7 @@ components:
     acknowledgementMessage:
       name: Acknowledgement
       title: Acknowledgement Message
-      description: The resource's answer to one activation
+      description: The resource's answer to one activation.
       contentType: application/json
       payload:
         $ref: '#/components/schemas/acknowledgementPayload'
@@ -1480,11 +1475,9 @@ components:
     user-password:
       type: userPassword
       description: >
-        Credentials are generated during resource registration and must be stored
-        securely.
+        Username and password credentials, issued per resource at registration.
 
-        Credentials are issued per resource, and each resource holds its own
+        Each resource authenticates with its own credentials and holds its own
         connection.
 
-        Connection attempts with invalid credentials are logged and may trigger
-        alerts.
+        Connection attempts with invalid credentials are logged.

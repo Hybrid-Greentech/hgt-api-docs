@@ -27,7 +27,7 @@ Data frequency is the maximum gap between consecutive samples of the same metric
 
 Publish a sample on every interval, including when the value has not changed. The platform treats a gap in the stream as a fault, not as an unchanged value.
 
-Every metric is also **change-driven**: publish immediately when a value moves materially, without waiting for the next interval. Resources have a published threshold of ±1 kW on the power metrics — see [Metrics](/data-standards/metrics#distributed-energy-resources). For assets the per-metric threshold is not yet published, so data frequency is the binding requirement until it is.
+Every metric is also **change-driven**: publish immediately when a value crosses its change threshold, without waiting for the next interval. On resources the threshold is ±1 kW on the power metrics — see [Metrics](/data-standards/metrics#distributed-energy-resources). For assets no per-metric threshold is published, so data frequency is the binding requirement until one is.
 
 ### Roundtrip asset response
 

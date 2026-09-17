@@ -22,10 +22,10 @@ All topics follow the pattern:
 
 | Segment | Description |
 |---------|-------------|
-| `priceZone` | Grid bidding zone — `DK1` or `DK2` |
-| `customerName` | Your assigned namespace |
-| `v2` | API version segment |
-| `channel` | `register`, `update`, `measurements`, `events`, `activation`, or `acknowledgement` |
+| `priceZone` | Grid bidding zone. One of `DK1` or `DK2`. |
+| `customerName` | Namespace assigned during onboarding. |
+| `v2` | API version segment. |
+| `channel` | One of `register`, `update`, `measurements`, `events`, `activation`, or `acknowledgement`. |
 | `resourceId` | The resource the message concerns. Absent on `register`, which carries an array. |
 
 Neither the site nor the portfolio appears in the topic. Portfolio membership is administrative, and a resource that moves between portfolios keeps its topic and its credentials.
@@ -264,7 +264,7 @@ Registration declares what the resource is and the envelope it can be dispatched
 
     An array exports rather than consumes, so `maxImportKw` is `0` and every reachable setpoint is non-negative. A setpoint below current production is curtailment, and `Release` returns the array to producing whatever the sun allows. An inverter that accepts only stepped limits declares `Steps` instead, listing the outputs it can reach.
 
-    This roof has two faces, so it declares two module groups. Their 7.4 kWp of DC capacity exceeds the 6 kW inverter, which is normal — the surplus is clipped. `systemLoss` is optional, and the platform applies `0.14` when you omit it.
+    This roof has two faces, so it declares two module groups. Their 7.4 kWp of DC capacity exceeds the 6 kW inverter, and the surplus is clipped. `systemLoss` is optional, and the platform applies `0.14` when you omit it.
 
     | Direction | `azimuth` |
     |-----------|-----------|
@@ -317,7 +317,7 @@ Registration declares what the resource is and the envelope it can be dispatched
 |-------|-------------------------------|
 | `maxImportKw` | Bounds the import end of the setpoint range. A commanded setpoint never falls below `-maxImportKw`. |
 | `maxExportKw` | Bounds the export end. `0` for a resource that can only consume. |
-| `controlGranularity` | The setpoints the resource can actually reach. The platform commands a target; you apply the nearest reachable value. |
+| `controlGranularity` | The setpoints the resource can actually reach. The platform commands a target, and the resource applies the nearest reachable value. |
 | `marketRelationships` | Places the resource in a portfolio. |
 | `configuration` | Type-specific equipment properties. |
 
@@ -843,7 +843,7 @@ The obligation is additive. Units, bounds, and change thresholds are on [Metrics
 
 The platform does not track which resources share a site, so there is no cross-resource consistency obligation between co-sited resources.
 
-EV chargers are exempt, because an OCPP backend typically has no site-meter access.
+EV chargers do not publish either metric.
 
 ### Battery state metrics
 
@@ -874,10 +874,10 @@ Publish an event whenever the resource's dispatch-relevant condition changes.
 
 | `resourceState` | Meaning |
 |-----------------|---------|
-| `Available` | Dispatchable, running under its own control logic |
-| `Unavailable` | Not dispatchable |
-| `Activated` | Holding a setpoint the platform commanded |
-| `Faulted` | Not dispatchable because of an equipment fault |
+| `Available` | Dispatchable, and running under its own control logic. |
+| `Unavailable` | Not dispatchable. |
+| `Activated` | Holding a setpoint the platform commanded. |
+| `Faulted` | Not dispatchable because of an equipment fault. |
 
 Direction is carried by the activation, so there is one `Activated` state rather than one per direction.
 
@@ -934,7 +934,7 @@ Subscribe to the activation channel. Two commands exist.
     }
     ```
 
-    `setpoint` is signed on the generator convention and falls within `[-maxImportKw, maxExportKw]`. `endsAt` is always present: it tells you how long to hold the value, and it lets the resource revert safely if the link to the platform dies.
+    `setpoint` is signed on the generator convention and falls within `[-maxImportKw, maxExportKw]`. `endsAt` is always present. It is the time at which the obligation to hold the setpoint ends, and it lets the resource revert safely if the link to the platform drops.
 
   </Tab>
   <Tab title="Release">
@@ -994,14 +994,14 @@ Every activation is acknowledged, for every resource type.
 
 | `acceptance` | Meaning |
 |--------------|---------|
-| `Accepted` | The resource applied the command |
-| `Rejected` | The resource refused the command |
-| `Offline` | The resource is not reachable from your system |
-| `NotAvailable` | The resource is reachable but not dispatchable |
-| `InvalidResourceId` | `resourceId` does not match a registered resource |
-| `InvalidMessageFormat` | The payload could not be parsed |
-| `InternalError` | The command failed for a reason on your side |
-| `Unauthorised` | Your system refused the command on authorisation grounds |
+| `Accepted` | The resource applied the command. |
+| `Rejected` | The resource refused the command. |
+| `Offline` | The resource is not reachable from the partner's system. |
+| `NotAvailable` | The resource is reachable but not dispatchable. |
+| `InvalidResourceId` | `resourceId` does not match a registered resource. |
+| `InvalidMessageFormat` | The payload could not be parsed. |
+| `InternalError` | The command failed for a reason on the partner's side. |
+| `Unauthorised` | The partner's system refused the command on authorisation grounds. |
 
 Detail specific to a resource type goes in `reason`, as free text:
 

@@ -142,7 +142,7 @@ The change threshold is an absolute ±1 kW, with no percentage floor. It obliges
 
 `siteImport` and `siteExport` describe the site's metered connection point rather than the resource. They exist for monitoring and settlement and are **not** a dispatch input: available power is the authoritative dispatch limit. The platform does not track which resources share a site, so co-sited resources carry no cross-resource consistency obligation.
 
-EV chargers are exempt from site import and export, because an OCPP backend typically has no site-meter access. Every other resource type publishes them.
+EV chargers do not publish site import and export. Every other resource type publishes them.
 
 <Warning>
   `stateOfCharge`, `availableEnergyUp`, and `availableEnergyDown` are not derivable from one another. Reservations outside the platform's control move the usable floor and ceiling independently of the state of charge. Publish all three as sampled values.

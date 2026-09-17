@@ -5,7 +5,7 @@ description: How the platform assesses bounds, and the integrity, clock, and tra
 
 ## Bound assessment
 
-The platform assesses compliance per asset and per metric over a rolling one-hour window. Both of the following must hold for every bound on [Market requirements](/data-standards/markets):
+The platform assesses compliance per asset or resource, and per metric, over a rolling one-hour window. Both of the following must hold for every bound on [Market requirements](/data-standards/markets):
 
 - At least **99%** of intervals are within the bound.
 - **No single gap** exceeds **10 times** the bound.
@@ -50,12 +50,14 @@ Publish sampled values, never derived ones. Do not:
 
 ## Timestamps
 
-Every measurement message carries two timestamps:
+Every asset measurement message carries two timestamps:
 
 | Field | Description |
 |-------|-------------|
-| `assetTimestamp` | When the site sampled the value |
-| `serverTimestamp` | When Hybrid Greentech received the message |
+| `assetTimestamp` | Time at which the site sampled the value. |
+| `serverTimestamp` | Time at which Hybrid Greentech received the message. |
+
+Resource measurements carry `resourceTimestamp` in place of `assetTimestamp`. It is `null` when the equipment has no clock the partner trusts.
 
 The platform assesses data frequency on the gap between consecutive `assetTimestamp` values, and delivery lag as `serverTimestamp − assetTimestamp`. It assesses each separately.
 
@@ -79,11 +81,11 @@ Asset channels, on the Delegated Operators API:
 
 | Channel | Direction | QoS |
 |---------|-----------|-----|
-| `measurements` | Operator to platform | 0 |
-| `events` | Operator to platform | 1 |
-| `tasks/events` | Operator to platform | 1 |
-| `tasks` | Platform to operator | 1 |
-| `activation` | Platform to operator | 1 |
+| `measurements` | Delegated Operator to platform | 0 |
+| `events` | Delegated Operator to platform | 1 |
+| `tasks/events` | Delegated Operator to platform | 1 |
+| `tasks` | Platform to Delegated Operator | 1 |
+| `activation` | Platform to Delegated Operator | 1 |
 
 Resource channels, on the `v2` distributed energy resources API:
 
