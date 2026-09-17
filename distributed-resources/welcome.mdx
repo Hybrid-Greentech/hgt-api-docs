@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: Connect EV chargers, heat pumps, and batteries to the HGT platform as distributed energy resources.
+description: Connect EV chargers, heat pumps, batteries, CHP, P2X, PV, and other dispatchable equipment to the HGT platform as distributed energy resources.
 ---
 
 Distributed energy resources are individually dispatchable devices a third party offers to the HGT platform for flexibility and ancillary services. One API covers every type.
@@ -11,7 +11,7 @@ Distributed energy resources are individually dispatchable devices a third party
     icon="bolt"
     href="/distributed-resources/quickstart"
   >
-    Register a resource, stream its telemetry, and act on setpoints. Covers all three resource types.
+    Register a resource, stream its telemetry, and act on setpoints. Covers every resource type.
   </Card>
   <Card
     title="Migrating to v2"
@@ -35,12 +35,12 @@ An **asset** is a dispatchable installation under delegated or direct control, i
 | EV charger | `evCharger` | Residential and commercial charge points, integrated through an OCPP backend |
 | Heat pump | `heatPump` | Residential and small commercial units |
 | Battery | `bess` | Residential and small commercial storage |
+| CHP | `chp` | Combined heat and power units, which export electricity |
+| P2X | `p2x` | Power-to-X plants, which convert electricity into another carrier |
+| PV | `pv` | Residential and small commercial rooftop and ground-mount arrays |
+| Other | `misc` | Dispatchable equipment with no resource type of its own yet |
 
 Larger batteries integrate through [OEM Integration](/controller/overview), where the platform drives the hardware directly, or through [Individual Sites](/delegated-operators/welcome), where a third party closes the control loop. The choice is about who closes the loop and at what scale, not about the equipment.
-
-<Note>
-  Photovoltaics are not yet accepted as a resource type. They land in a later additive release.
-</Note>
 
 ---
 
@@ -53,7 +53,7 @@ Registration, telemetry, events, dispatch, and acknowledgement are identical acr
 | Which metrics the resource publishes | The measurements channel — see [Metrics](/data-standards/metrics) |
 | Which equipment properties it declares | The `configuration` block at registration |
 
-Everything else — the topic tree, the envelope, the setpoint semantics, the acknowledgement contract — is shared. Onboarding a new resource type costs one enum value and one configuration variant.
+Everything else — the topic tree, the envelope, the setpoint semantics, the acknowledgement contract — is shared. Onboarding a new resource type costs one enum value and, where the equipment has dispatch-relevant properties to declare, one configuration variant. `chp`, `p2x`, and `misc` declare none, so their `configuration` is an empty object. `pv` declares one, because production forecasting reads where the array sits and how it is oriented, and nothing else on the wire carries that.
 
 ---
 
@@ -108,13 +108,17 @@ A setpoint is a **target**, not a ceiling. You apply the nearest value your decl
   A release is not a setpoint of `0`. Zero power is a valid instruction to hold zero power, and the resource stays under platform control until it is released.
 </Warning>
 
-The three resource types differ only in the range they occupy. That difference is declared at registration, not carried in the message:
+Resource types differ only in the range they occupy. That difference is declared at registration, not carried in the message:
 
 | Resource type | Setpoint range |
 |---------------|----------------|
 | `evCharger` | `[-maxImportKw, 0]` |
 | `heatPump` | `[-maxImportKw, 0]` |
+| `p2x` | `[-maxImportKw, 0]` |
+| `chp` | `[0, maxExportKw]` |
+| `pv` | `[0, maxExportKw]` |
 | `bess` | `[-maxImportKw, maxExportKw]` |
+| `misc` | `[-maxImportKw, maxExportKw]`, whichever ends the equipment declares |
 
 ---
 

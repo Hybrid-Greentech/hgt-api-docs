@@ -19,10 +19,10 @@ EV chargers and heat pumps each had their own AsyncAPI spec, and the two agreed 
 - Timing bounds stay in Data Standards rather than moving into the spec, because bounds are keyed on **market** and markets span every integration surface. Duplicating the table into the DER spec would drift at the first TSO revision.
 - Two DER specs run in parallel for an unbounded period. v1 stays published and fully operational for existing customers; new integrations get v2 only.
 - One physical battery may be a **resource** or an **asset** depending on who closes its control loop, and the two are never interchangeable in dispatch or settlement. This is a permanent split in vocabulary, not a transitional one.
+- **A resource type may declare no configuration.** `chp`, `p2x`, and `misc` ship with the heat pump metric set and an empty `configuration` object, because registration has no field the platform would branch on for them yet. The alternative — inventing equipment properties per type to fill the block — publishes a contract we cannot honour. `misc` is the deliberate catch-all, so a new class of dispatchable equipment can integrate before it earns an enum value of its own. PV stayed out of that bucket and declares a variant of its own, because its registration carries production-forecast inputs no empty block could hold — see [ADR 0003](0003-pv-registration-carries-forecast-inputs.md).
 
 ## Deferred
 
-- **PV.** `resourceType` is an open enum, but `pv` lands in a later additive release rather than shipping with a registration variant we know is incomplete.
 - **Site import and export for EV chargers.** Scoped out because an OCPP-backend integrator typically has no site-meter access. Revisit if some do; making the metrics optional for one type would mean the platform could never rely on them.
 - **Machine-readable error codes.** `severity` plus a free-text `code` for v2. A structured enum waits for evidence of which codes consumers actually branch on.
 - **Change thresholds for the state metrics.** ±1 kW covers the power metrics. `stateOfCharge`, `availableEnergyUp`, and `availableEnergyDown` stay periodic-only, since a 1 s bound already outpaces how fast they move.

@@ -96,6 +96,10 @@ _Avoid_: stop, cancellation, inactive
 The end of an activation on the resource surface, expressed as its own command that returns the resource to its own control logic. Deliberately not a setpoint of zero, because zero power is itself a valid instruction to a resource that can only consume.
 _Avoid_: deactivation, clear, stop, idle
 
+**Curtailment**:
+A downward activation on a generating resource: a setpoint below the power it could produce under present conditions. Its magnitude is bounded by the resource's available power down. Raising the setpoint again is an upward activation, and a **release** is the separate command that ends platform control altogether.
+_Avoid_: clipping, derating, limiting, throttling
+
 **Control granularity**:
 The set of setpoints a resource can actually reach — continuous, fixed steps, or on and off only. Declared once at registration, and the reason a commanded setpoint and the power that follows it may legitimately differ.
 _Avoid_: resolution, precision, step size
@@ -141,8 +145,12 @@ A single dispatchable installation under delegated or direct control, identified
 _Avoid_: resource, site, plant
 
 **Resource type**:
-The class of a resource, which determines the metrics it must publish and the configuration it declares at registration. Currently EV charger, heat pump, and BESS, and the list grows as new classes are onboarded. The asset-side equivalent is **device type**.
+The class of a resource, which determines the metrics it must publish and the configuration it declares at registration. Currently EV charger, heat pump, BESS, CHP, P2X, PV, and `misc` — the catch-all for dispatchable equipment with no class of its own yet — and the list grows as new classes are onboarded. CHP, P2X, and `misc` carry the heat pump metric set and declare an empty configuration. PV carries the same metric set and declares where the array sits and how it is oriented, which is what production forecasting reads. The asset-side equivalent is **device type**.
 _Avoid_: device type, asset class, DER type
+
+**Module group**:
+A set of photovoltaic modules sharing one orientation and one tilt, declared at registration. A roof with two faces declares two, because production forecasting reads orientation per group rather than per resource.
+_Avoid_: string, sub-array, panel group
 
 **Resource portfolio**:
 A group of resources of a single resource type, offered by one third party. Resources at one site may sit in different portfolios, and a portfolio spans many sites. Distinct from **delegated portfolio**, which names an integration arrangement rather than a grouping.

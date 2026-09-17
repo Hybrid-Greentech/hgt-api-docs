@@ -130,7 +130,11 @@ The obligation is additive:
 |----------------|-----------|
 | `evCharger` | Measured power, available power up, available power down |
 | `heatPump` | The above, plus site import and site export |
-| `bess` | The above, plus state of charge, available energy up, and available energy down |
+| `chp` | The same five as `heatPump` |
+| `p2x` | The same five as `heatPump` |
+| `pv` | The same five as `heatPump` |
+| `misc` | The same five as `heatPump` |
+| `bess` | The same five, plus state of charge, available energy up, and available energy down |
 
 The change threshold is an absolute ±1 kW, with no percentage floor. It obliges an **additional** immediate sample and does not reset the interval: a sample is still due at the periodic bound even when the value has not moved.
 
@@ -138,7 +142,7 @@ The change threshold is an absolute ±1 kW, with no percentage floor. It obliges
 
 `siteImport` and `siteExport` describe the site's metered connection point rather than the resource. They exist for monitoring and settlement and are **not** a dispatch input: available power is the authoritative dispatch limit. The platform does not track which resources share a site, so co-sited resources carry no cross-resource consistency obligation.
 
-EV chargers are exempt from site import and export, because an OCPP backend typically has no site-meter access.
+EV chargers are exempt from site import and export, because an OCPP backend typically has no site-meter access. Every other resource type publishes them.
 
 <Warning>
   `stateOfCharge`, `availableEnergyUp`, and `availableEnergyDown` are not derivable from one another. Reservations outside the platform's control move the usable floor and ceiling independently of the state of charge. Publish all three as sampled values.

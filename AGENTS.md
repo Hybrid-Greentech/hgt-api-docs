@@ -14,9 +14,9 @@
 ## Terminology
 
 - "HGT" / "Hybrid Greentech" — the platform; "HGT platform" for the whole system.
-- "DER" (Distributed Energy Resource) — an EV charger or heat pump integrating directly; keep distinct from "asset", the general term for anything dispatched (BESS, PV, DER, or delegated-operator-controlled equipment).
+- "DER" (Distributed Energy Resource) — equipment integrating directly on the resource API: EV charger, heat pump, battery, CHP, P2X, PV, or `misc`; keep distinct from "asset", the term for anything dispatched under delegated or direct control. One physical battery or PV array is a resource or an asset depending on who closes its control loop.
 - "Delegated Operator" — a third party dispatching assets on HGT's behalf; not "aggregator" or "operator" alone.
-- "Resource" — the EV-charger/heat-pump term for a registered device (`resourceId`); use "asset" (`assetId`) for delegated-operator and REST contexts. Don't mix the two within one API's docs.
+- "Resource" — the DER term for a registered device (`resourceId`); use "asset" (`assetId`) for delegated-operator and REST contexts. Don't mix the two within one API's docs.
 - "Activation" — a real-time dispatch command; "task" — a planned/scheduled dispatch window (delegated operators only). Don't use interchangeably.
 
 ## Style preferences

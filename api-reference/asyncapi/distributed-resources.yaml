@@ -9,7 +9,9 @@ info:
     the resource publishes, and which `configuration` variant it declares at
     registration. Every topic, envelope, and control semantic is shared.
 
-    The supported resource types are `evCharger`, `heatPump`, and `bess`.
+    The supported resource types are `evCharger`, `heatPump`, `bess`, `chp`, `p2x`,
+    `pv`, and `misc`. `misc` is the catch-all for dispatchable equipment that has no
+    type of its own yet.
 
     This API supersedes the EV charger and heat pump v1 APIs, which remain
     published and operational for existing integrations. New integrations use this
@@ -297,6 +299,10 @@ components:
         - evCharger
         - heatPump
         - bess
+        - chp
+        - p2x
+        - pv
+        - misc
     subscriptionStatus:
       type: string
       description: |
@@ -323,8 +329,9 @@ components:
 
 
         Which metrics a resource must publish is fixed by its `resourceType`, and
-        the obligation is additive: an `evCharger` publishes the first three, a
-        `heatPump` the first five, and a `bess` all eight.
+        the obligation is additive: an `evCharger` publishes the first three; a
+        `heatPump`, `chp`, `p2x`, `pv`, and `misc` the first five; and a `bess` all
+        eight.
 
         - `measuredPower` — power the resource is drawing or delivering now, in
         `kW`. Signed, following the generator convention where export is positive
@@ -689,14 +696,89 @@ components:
         - maxSoc
         - chargeEfficiency
         - dischargeEfficiency
+    emptyConfiguration:
+      type: object
+      description: |
+        Configuration declared by a resource of type `chp`, `p2x`, or `misc`. No
+        equipment properties are defined for these types, so the block is an empty
+        object. The dispatch envelope comes from `maxImportKw`, `maxExportKw`, and
+        `controlGranularity` alone.
+      additionalProperties: false
+    moduleGroup:
+      type: object
+      description: |
+        One set of photovoltaic modules sharing a single orientation and tilt.
+      properties:
+        capacityKwp:
+          type: number
+          description: |
+            Peak DC capacity of the group at standard test conditions, in `kWp`.
+            Unsigned. Not the inverter's AC rating, which is `maxExportKw`.
+        azimuth:
+          type: number
+          description: |
+            Direction the modules face, in degrees from true south, positive toward
+            east. Ranges from `-180` to `180` inclusive. South is `0`, east is `90`,
+            west is `-90`, and north is `180` or `-180`. A design tool reporting
+            azimuth from north, or from south with west positive, requires conversion
+            before publishing.
+        inclination:
+          type: number
+          description: |
+            Tilt of the modules from horizontal, in degrees. Ranges from `0` to `90`
+            inclusive, where `0` is horizontal and `90` is vertical.
+      required:
+        - capacityKwp
+        - azimuth
+        - inclination
+    pvConfiguration:
+      type: object
+      description: |
+        Configuration declared by a resource of type `pv`. These are the properties
+        production forecasting reads. Identity properties such as manufacturer and
+        commissioning year are not declared here, and neither is an inverter rating:
+        the AC envelope is `maxExportKw`.
+      properties:
+        latitude:
+          type: number
+          description: |
+            Latitude of the array in decimal degrees on WGS 84. Ranges from `-90` to
+            `90` inclusive.
+        longitude:
+          type: number
+          description: |
+            Longitude of the array in decimal degrees on WGS 84. Ranges from `-180`
+            to `180` inclusive.
+        moduleGroups:
+          type: array
+          description: |
+            The array's module groups, one per orientation. A roof with two faces
+            declares two groups. Their combined `capacityKwp` may exceed
+            `maxExportKw`, since an array larger than its inverter is normal and the
+            surplus is clipped.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/moduleGroup'
+        systemLoss:
+          type: number
+          description: |
+            Fraction of DC production lost before the meter, covering wiring, soiling,
+            and conversion. Ranges from `0` to `1`. Defaults to `0.14` when omitted.
+      required:
+        - latitude
+        - longitude
+        - moduleGroups
     resourceConfiguration:
       description: |
         Type-specific properties of the resource. The variant follows
-        `resourceType`.
+        `resourceType`, and is an empty object for the types that declare no
+        equipment properties.
       oneOf:
         - $ref: '#/components/schemas/evChargerConfiguration'
         - $ref: '#/components/schemas/heatPumpConfiguration'
         - $ref: '#/components/schemas/bessConfiguration'
+        - $ref: '#/components/schemas/pvConfiguration'
+        - $ref: '#/components/schemas/emptyConfiguration'
     resourceRegistration:
       type: object
       description: |
@@ -1073,6 +1155,110 @@ components:
                   maxSoc: 100
                   chargeEfficiency: 0.96
                   dischargeEfficiency: 0.96
+        - name: registerChp
+          summary: A combined heat and power unit, which exports rather than consumes
+          payload:
+            messageId: 01M1GST35AB4TCZR6WQY4M5EKF
+            timestamp: 1788344077482
+            resources:
+              - resourceId: chp-site-d-01
+                resourceType: chp
+                subscriptionStatus: Subscribed
+                maxImportKw: 0
+                maxExportKw: 9
+                controlGranularity:
+                  mode: Steps
+                  stepsKw:
+                    - 0
+                    - 4.5
+                    - 9
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration: {}
+        - name: registerP2x
+          summary: A power-to-X plant, which consumes across a continuous band
+          payload:
+            messageId: 01M1GST35AC8QW2XJ5N7VHYD3T
+            timestamp: 1788344077482
+            resources:
+              - resourceId: p2x-site-e-01
+                resourceType: p2x
+                subscriptionStatus: Subscribed
+                maxImportKw: 50
+                maxExportKw: 0
+                controlGranularity:
+                  mode: Continuous
+                  minKw: -50
+                  maxKw: 0
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration: {}
+        - name: registerPv
+          summary: A rooftop photovoltaic array, which exports and can be curtailed
+          payload:
+            messageId: 01M1GST35AE6YH4NCX2VJ7RD5P
+            timestamp: 1788344077482
+            resources:
+              - resourceId: pv-site-g-01
+                resourceType: pv
+                subscriptionStatus: Subscribed
+                maxImportKw: 0
+                maxExportKw: 6
+                controlGranularity:
+                  mode: Continuous
+                  minKw: 0
+                  maxKw: 6
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration:
+                  latitude: 55.68
+                  longitude: 12.57
+                  systemLoss: 0.11
+                  moduleGroups:
+                    - capacityKwp: 5
+                      azimuth: 0
+                      inclination: 35
+                    - capacityKwp: 2.4
+                      azimuth: -90
+                      inclination: 35
+        - name: registerMisc
+          summary: Dispatchable equipment with no resource type of its own
+          payload:
+            messageId: 01M1GST35AD1ZK9PFR3T8XQW7B
+            timestamp: 1788344077482
+            resources:
+              - resourceId: misc-site-f-01
+                resourceType: misc
+                subscriptionStatus: Subscribed
+                maxImportKw: 12
+                maxExportKw: 0
+                controlGranularity:
+                  mode: Continuous
+                  minKw: -12
+                  maxKw: 0
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration: {}
     updateResourceMessage:
       name: Update Resource
       title: Resource Update Message
@@ -1120,12 +1306,12 @@ components:
             resourceTimestamp: 1788344077482
             serverTimestamp: 1788344077549
         - name: availablePowerUp
-          summary: Headroom to reduce consumption, as an unsigned magnitude
+          summary: Headroom to reduce consumption from the current operating point, as an unsigned magnitude
           payload:
             messageId: 01M1GST35AQK4X8ZC1PBW0M2VT
             resourceId: evse-site-a-01
             measurementType: availablePowerUp
-            value: 5.8
+            value: 7.2
             unit: kW
             resourceTimestamp: 1788344077482
             serverTimestamp: 1788344077549
