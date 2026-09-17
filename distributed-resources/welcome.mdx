@@ -11,7 +11,7 @@ Distributed energy resources are individually dispatchable devices a third party
     icon="bolt"
     href="/distributed-resources/quickstart"
   >
-    Register a resource, stream its telemetry, and act on setpoints. Covers all three resource types.
+    Register a resource, stream its telemetry, and act on setpoints. Covers every resource type.
   </Card>
   <Card
     title="Migrating to v2"
@@ -32,15 +32,15 @@ An **asset** is a dispatchable installation under delegated or direct control, i
 
 | Resource type | `resourceType` | Typical scale |
 |---------------|----------------|---------------|
-| EV charger | `evCharger` | Residential and commercial charge points, integrated through an OCPP backend |
-| Heat pump | `heatPump` | Residential and small commercial units |
-| Battery | `bess` | Residential and small commercial storage |
+| EV charger | `evCharger` | Residential and commercial charge points, integrated through an OCPP backend. |
+| Heat pump | `heatPump` | Residential and small commercial units. |
+| Battery | `bess` | Residential and small commercial storage. |
+| CHP | `chp` | Combined heat and power units, which export electricity. |
+| P2X | `p2x` | Power-to-X plants, which convert electricity into another carrier. |
+| PV | `pv` | Residential and small commercial rooftop and ground-mount arrays. |
+| Other | `misc` | Dispatchable equipment with no resource type of its own yet. |
 
 Larger batteries integrate through [OEM Integration](/controller/overview), where the platform drives the hardware directly, or through [Individual Sites](/delegated-operators/welcome), where a third party closes the control loop. The choice is about who closes the loop and at what scale, not about the equipment.
-
-<Note>
-  Photovoltaics are not yet accepted as a resource type. They land in a later additive release.
-</Note>
 
 ---
 
@@ -53,7 +53,7 @@ Registration, telemetry, events, dispatch, and acknowledgement are identical acr
 | Which metrics the resource publishes | The measurements channel — see [Metrics](/data-standards/metrics) |
 | Which equipment properties it declares | The `configuration` block at registration |
 
-Everything else — the topic tree, the envelope, the setpoint semantics, the acknowledgement contract — is shared. Onboarding a new resource type costs one enum value and one configuration variant.
+Everything else — the topic tree, the envelope, the setpoint semantics, the acknowledgement contract — is shared. Onboarding a new resource type costs one enum value and, where the equipment has dispatch-relevant properties to declare, one configuration variant. `chp`, `p2x`, and `misc` declare none, so their `configuration` is an empty object. `pv` declares one, because production forecasting reads where the array sits and how it is oriented, and nothing else on the wire carries that.
 
 ---
 
@@ -72,10 +72,10 @@ All topics follow the pattern:
 
 | Segment | Description |
 |---------|-------------|
-| `priceZone` | Grid bidding zone — `DK1` or `DK2` |
-| `customerName` | Your assigned namespace |
-| `v2` | API version segment |
-| `channel` | `register`, `update`, `measurements`, `events`, `activation`, or `acknowledgement` |
+| `priceZone` | Grid bidding zone. One of `DK1` or `DK2`. |
+| `customerName` | Namespace assigned during onboarding. |
+| `v2` | API version segment. |
+| `channel` | One of `register`, `update`, `measurements`, `events`, `activation`, or `acknowledgement`. |
 | `resourceId` | The resource the message concerns. Absent on `register`, which carries an array. |
 
 Neither the site nor the portfolio appears in the topic. Portfolio membership is administrative, and a resource that moves between portfolios keeps its topic and its credentials.
@@ -99,8 +99,8 @@ The platform commands an absolute, signed power setpoint. Two commands exist:
 
 | Command | Effect |
 |---------|--------|
-| `Setpoint` | Move to a signed power value now, and hold it until released or until `endsAt` |
-| `Release` | Return to your own control logic |
+| `Setpoint` | Moves the resource to a signed power value now, and holds it until released or until `endsAt`. |
+| `Release` | Returns the resource to its own control logic. |
 
 A setpoint is a **target**, not a ceiling. You apply the nearest value your declared `controlGranularity` allows, and `measuredPower` reports what you achieved.
 
@@ -108,13 +108,17 @@ A setpoint is a **target**, not a ceiling. You apply the nearest value your decl
   A release is not a setpoint of `0`. Zero power is a valid instruction to hold zero power, and the resource stays under platform control until it is released.
 </Warning>
 
-The three resource types differ only in the range they occupy. That difference is declared at registration, not carried in the message:
+Resource types differ only in the range they occupy. That difference is declared at registration, not carried in the message:
 
 | Resource type | Setpoint range |
 |---------------|----------------|
 | `evCharger` | `[-maxImportKw, 0]` |
 | `heatPump` | `[-maxImportKw, 0]` |
+| `p2x` | `[-maxImportKw, 0]` |
+| `chp` | `[0, maxExportKw]` |
+| `pv` | `[0, maxExportKw]` |
 | `bess` | `[-maxImportKw, maxExportKw]` |
+| `misc` | `[-maxImportKw, maxExportKw]`. Either end is `0` when the equipment cannot reach it. |
 
 ---
 
