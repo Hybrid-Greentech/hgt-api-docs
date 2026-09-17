@@ -35,6 +35,10 @@ An **asset** is a dispatchable installation under delegated or direct control, i
 | EV charger | `evCharger` | Residential and commercial charge points, integrated through an OCPP backend. |
 | Heat pump | `heatPump` | Residential and small commercial units. |
 | Battery | `bess` | Residential and small commercial storage. |
+| CHP | `chp` | Combined heat and power units, which export electricity |
+| P2X | `p2x` | Power-to-X plants, which convert electricity into another carrier |
+| PV | `pv` | Residential and small commercial rooftop and ground-mount arrays |
+| Other | `misc` | Dispatchable equipment with no resource type of its own yet |
 | CHP | `chp` | Combined heat and power units, which export electricity. |
 | P2X | `p2x` | Power-to-X plants, which convert electricity into another carrier. |
 | PV | `pv` | Residential and small commercial rooftop and ground-mount arrays. |
@@ -118,6 +122,7 @@ Resource types differ only in the range they occupy. That difference is declared
 | `chp` | `[0, maxExportKw]` |
 | `pv` | `[0, maxExportKw]` |
 | `bess` | `[-maxImportKw, maxExportKw]` |
+| `misc` | `[-maxImportKw, maxExportKw]`, whichever ends the equipment declares |
 | `misc` | `[-maxImportKw, maxExportKw]`. Either end is `0` when the equipment cannot reach it. |
 
 ---
