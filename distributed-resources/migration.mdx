@@ -177,7 +177,7 @@ Site and portfolio do not appear in either version's topic. A resource that chan
 | — | `measurementType: "availablePowerUp"`, required |
 | — | `measurementType: "availablePowerDown"`, required |
 
-One metric per message. EV chargers do not publish `siteImport` or `siteExport`.
+One metric per message.
 
 ### Events
 
@@ -244,8 +244,6 @@ Note the case change on the rated-power fields: `KW` becomes `Kw`.
 | `availableUpKw` | `measurementType: "availablePowerUp"` — same quantity |
 | `availableDownKw` | `measurementType: "availablePowerDown"` — **recomputed**, see [Hazard 2](#hazard-2-—-heat-pump-availablepowerdown-is-a-recomputation-not-a-rename) |
 | — | `measurementType: "measuredPower"`, required |
-| — | `measurementType: "siteImport"`, required |
-| — | `measurementType: "siteExport"`, required |
 
 ### Events
 

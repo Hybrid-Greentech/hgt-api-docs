@@ -53,7 +53,7 @@ The downward-regulation direction: the asset absorbs more power from the grid, b
 _Avoid_: discharge, negative, decrease
 
 **Available power up / Available power down**:
-The additional power a resource can still deliver in each direction, measured from its current operating point rather than from zero. Headroom, not a rating. It falls to zero when a constraint outside the platform's control has already claimed the capability, and it never exceeds what the equipment can physically reach.
+The additional power a resource can still deliver in each direction, measured from its current operating point rather than from zero. Headroom, not a rating. It falls to zero when a constraint outside the platform's control has already claimed the capability, it is already net of any cap the site's metered connection point imposes, and it never exceeds what the equipment can physically reach.
 _Avoid_: capacity, availability, flexibility, rated power, nameplate
 
 **Data frequency**:
@@ -115,10 +115,6 @@ _Avoid_: keepalive, ping, health check
 **Site**:
 A physical location owning one or more resources or assets. Distinct from the Individual Sites integration surface, which names a control arrangement rather than a place.
 _Avoid_: plant, installation, location, facility
-
-**Site import / Site export**:
-The power flowing into and out of a site at its metered connection point. A shared physical fact about the site rather than about any one resource, and reported for monitoring and settlement rather than as a dispatch limit.
-_Avoid_: grid power, net power, meter power
 
 ### Integration surfaces
 

@@ -340,7 +340,7 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
 <Tabs>
   <Tab title="EV charger">
 
-    A charge point drawing 7.2 kW of an 11 kW maximum publishes three metrics and no site metering. The headroom values are the consumption it can shed and the consumption it can add, both measured from `-7.2` kW.
+    A charge point drawing 7.2 kW of an 11 kW maximum publishes three metrics. The headroom values are the consumption it can shed and the consumption it can add, both measured from `-7.2` kW.
 
     ```json title="measuredPower"
     {
@@ -381,7 +381,7 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
   </Tab>
   <Tab title="Heat pump">
 
-    A heat pump running its compressor at 3 kW of a 9 kW maximum publishes the same three power metrics plus the site meter. `resourceTimestamp` is `null` on the site metrics, because the meter has no trusted clock of its own.
+    A heat pump running its compressor at 3 kW of a 9 kW maximum publishes the same three metrics. It can shed all 3 kW, and add 6 kW by staging the compressor and the backup heater.
 
     ```json title="measuredPower"
     {
@@ -419,34 +419,10 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
     }
     ```
 
-    ```json title="siteImport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ16",
-      "resourceId": "hp-site-b-01",
-      "measurementType": "siteImport",
-      "value": 4.1,
-      "unit": "kW",
-      "resourceTimestamp": null,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
-    ```json title="siteExport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ17",
-      "resourceId": "hp-site-b-01",
-      "measurementType": "siteExport",
-      "value": 0,
-      "unit": "kW",
-      "resourceTimestamp": null,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
   </Tab>
   <Tab title="Battery">
 
-    A battery discharging 4.2 kW at 94% state of charge publishes all eight metrics. `measuredPower` is positive because the battery is exporting, and the energy metrics are independent of `stateOfCharge` — at 94% there is little left to absorb.
+    A battery discharging 4.2 kW at 94% state of charge publishes all six metrics. `measuredPower` is positive because the battery is exporting, and the energy metrics are independent of `stateOfCharge` — at 94% there is little left to absorb.
 
     ```json title="measuredPower"
     {
@@ -478,30 +454,6 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
       "resourceId": "bess-site-c-01",
       "measurementType": "availablePowerDown",
       "value": 9.2,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
-    ```json title="siteImport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ21",
-      "resourceId": "bess-site-c-01",
-      "measurementType": "siteImport",
-      "value": 0,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
-    ```json title="siteExport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ22",
-      "resourceId": "bess-site-c-01",
-      "measurementType": "siteExport",
-      "value": 3.9,
       "unit": "kW",
       "resourceTimestamp": 1788344077482,
       "serverTimestamp": 1788344077549
@@ -547,7 +499,7 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
   </Tab>
   <Tab title="CHP">
 
-    A CHP exporting 4.5 kW of a 9 kW maximum publishes the same five metrics as a heat pump. `measuredPower` is positive because the unit is exporting, and the headroom values are the output it can add and the output it can drop.
+    A CHP exporting 4.5 kW of a 9 kW maximum publishes the same three metrics as a heat pump. `measuredPower` is positive because the unit is exporting, and the headroom values are the output it can add and the output it can drop.
 
     ```json title="measuredPower"
     {
@@ -585,34 +537,10 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
     }
     ```
 
-    ```json title="siteImport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ29",
-      "resourceId": "chp-site-d-01",
-      "measurementType": "siteImport",
-      "value": 0,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
-    ```json title="siteExport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ30",
-      "resourceId": "chp-site-d-01",
-      "measurementType": "siteExport",
-      "value": 4.3,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
   </Tab>
   <Tab title="P2X">
 
-    A P2X plant drawing 30 kW of a 50 kW maximum publishes the same five metrics. It can shed all 30 kW of consumption and add 20 kW more.
+    A P2X plant drawing 30 kW of a 50 kW maximum publishes the same three metrics. It can shed all 30 kW of consumption and add 20 kW more.
 
     ```json title="measuredPower"
     {
@@ -650,34 +578,10 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
     }
     ```
 
-    ```json title="siteImport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ34",
-      "resourceId": "p2x-site-e-01",
-      "measurementType": "siteImport",
-      "value": 31.2,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
-    ```json title="siteExport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ35",
-      "resourceId": "p2x-site-e-01",
-      "measurementType": "siteExport",
-      "value": 0,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
   </Tab>
   <Tab title="PV">
 
-    A rooftop array producing 4.2 kW through a 6 kW inverter publishes the same five metrics as a heat pump. `measuredPower` is positive because the array is generating, and it reports AC production at the inverter output whether that power reaches the grid or is consumed on site.
+    A rooftop array producing 4.2 kW through a 6 kW inverter publishes the same three metrics as a heat pump. `measuredPower` is positive because the array is generating, and it reports AC production at the inverter output whether that power reaches the grid or is consumed on site.
 
     Uncurtailed, the array has nothing to add: `availablePowerUp` is `0` because irradiance already claims the headroom, and `availablePowerDown` is the whole 4.2 kW that can be curtailed away. Curtail it to 1 kW and the two swap — up `3.2`, down `1`. Both fall to `0` after sunset.
 
@@ -717,36 +621,12 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
     }
     ```
 
-    ```json title="siteImport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ45",
-      "resourceId": "pv-site-g-01",
-      "measurementType": "siteImport",
-      "value": 0,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
-    ```json title="siteExport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ46",
-      "resourceId": "pv-site-g-01",
-      "measurementType": "siteExport",
-      "value": 3.1,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
-    The site consumes 1.1 kW of the 4.2 kW produced, so 3.1 kW reaches the meter. Add a battery to this site absorbing 3 kW and nothing about the array's measurements changes: the array still publishes `4.2`, the battery publishes `-3` on its own topic as a separate `bess` resource, and `siteExport` falls to `0.1`.
+    The array reports its own production, not the site's net position. Add a battery to this site absorbing 3 kW and nothing about the array's measurements changes: the array still publishes `4.2`, and the battery publishes `-3` on its own topic as a separate `bess` resource.
 
   </Tab>
   <Tab title="Other">
 
-    A `misc` resource publishes the same five metrics, whatever the equipment is. The platform reads the metrics, not the equipment class.
+    A `misc` resource publishes the same three metrics, whatever the equipment is. The platform reads the metrics, not the equipment class.
 
     ```json title="measuredPower"
     {
@@ -784,30 +664,6 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
     }
     ```
 
-    ```json title="siteImport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ39",
-      "resourceId": "misc-site-f-01",
-      "measurementType": "siteImport",
-      "value": 8.4,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
-    ```json title="siteExport"
-    {
-      "messageId": "01ABCDEFGHJKMNPQRSTVWXYZ40",
-      "resourceId": "misc-site-f-01",
-      "measurementType": "siteExport",
-      "value": 0,
-      "unit": "kW",
-      "resourceTimestamp": 1788344077482,
-      "serverTimestamp": 1788344077549
-    }
-    ```
-
   </Tab>
 </Tabs>
 
@@ -815,13 +671,8 @@ Every measurement uses the same envelope. `measuredPower` is signed and follows 
 
 | `resourceType` | Publishes |
 |----------------|-----------|
-| `evCharger` | `measuredPower`, `availablePowerUp`, `availablePowerDown` |
-| `heatPump` | The above three, plus `siteImport` and `siteExport` |
-| `chp` | The same five as `heatPump` |
-| `p2x` | The same five as `heatPump` |
-| `pv` | The same five as `heatPump` |
-| `misc` | The same five as `heatPump` |
-| `bess` | The same five, plus `stateOfCharge`, `availableEnergyUp`, and `availableEnergyDown` |
+| `evCharger`, `heatPump`, `chp`, `p2x`, `pv`, `misc` | `measuredPower`, `availablePowerUp`, `availablePowerDown` |
+| `bess` | The above three, plus `stateOfCharge`, `availableEnergyUp`, and `availableEnergyDown` |
 
 The obligation is additive. Units, bounds, and change thresholds are on [Metrics](/data-standards/metrics), and the market sets the bound on the power metrics.
 
@@ -832,18 +683,11 @@ The obligation is additive. Units, bounds, and change thresholds are on [Metrics
 - A value floors at `0` when something outside the platform's control has claimed the capability.
 - A value never exceeds what the equipment can physically reach.
 - A charge point drawing 7.2 kW of an 11 kW maximum has 7.2 kW of `availablePowerUp` — the consumption it can shed — and 3.8 kW of `availablePowerDown`.
+- Site constraints live inside the value, not beside it. Where the metered connection point, a site controller, or other equipment behind the same meter caps what the resource may import or export, subtract that cap before publishing. A 9 kW heat pump on a site already importing 17 kW of a 20 kW connection reports 3 kW of `availablePowerDown`, not the 6 kW the compressor and heater could take.
 
 <Warning>
   Publish available power as a sampled value, not as a rating adjusted by arithmetic. The platform dispatches up to the last value you published, and a setpoint is only interpretable against `measuredPower`. That is why every resource type publishes measured power, heat pumps included.
 </Warning>
-
-### Site import and export
-
-`siteImport` and `siteExport` describe the metered connection point of the whole site, not the resource. They are unsigned, and they exist for monitoring and settlement. They are **not** a dispatch input: available power is the authoritative dispatch limit.
-
-The platform does not track which resources share a site, so there is no cross-resource consistency obligation between co-sited resources.
-
-EV chargers do not publish either metric.
 
 ### Battery state metrics
 

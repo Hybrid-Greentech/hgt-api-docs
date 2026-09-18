@@ -325,9 +325,8 @@ components:
 
 
         Which metrics a resource must publish is fixed by its `resourceType`, and
-        the obligation is additive: an `evCharger` publishes the first three; a
-        `heatPump`, `chp`, `p2x`, `pv`, and `misc` the first five; and a `bess` all
-        eight.
+        the obligation is additive: an `evCharger`, `heatPump`, `chp`, `p2x`, `pv`,
+        and `misc` publish the first three; a `bess` all six.
 
         - `measuredPower` — power the resource is drawing or delivering now, in
         `kW`. Signed, following the generator convention where export is positive
@@ -339,22 +338,15 @@ components:
         upward, in `kW`. An unsigned magnitude measured from the current operating
         point, not a rating. Already net of every reservation and planned event
         outside the platform's control, including any reserve the resource holds
-        back for itself. Floors at `0` when something outside the platform's control
-        has claimed the capability, and never exceeds what the equipment can
-        physically reach.
+        back for itself. Also net of the site it stands on: where the metered
+        connection point, a site controller, or other equipment behind the same
+        meter caps what this resource may import or export, the value is the
+        headroom that remains under that cap. Floors at `0` when something outside
+        the platform's control has claimed the capability, and never exceeds what
+        the equipment can physically reach.
 
         - `availablePowerDown` — the same quantity in the downward direction, in
         `kW`, on the same terms.
-
-        - `siteImport` — power flowing into the site at its metered connection
-        point, in `kW`. Unsigned. A property of the site rather than of the
-        resource. Published for monitoring and settlement, and not a dispatch input:
-        the authoritative dispatch limit is available power. Required for every
-        resource type except `evCharger`.
-
-        - `siteExport` — power flowing out of the site at its metered connection
-        point, in `kW`. Unsigned. Required for every resource type except
-        `evCharger`.
 
         - `stateOfCharge` — energy stored in the battery as a fraction of its usable
         capacity, in `%`. Ranges from `0` to `100` inclusive. Required for `bess`.
@@ -382,8 +374,6 @@ components:
         - measuredPower
         - availablePowerUp
         - availablePowerDown
-        - siteImport
-        - siteExport
         - stateOfCharge
         - availableEnergyUp
         - availableEnergyDown
@@ -1325,8 +1315,8 @@ components:
           payload:
             messageId: 01M1GST35AS2VN6P0XJDHE4YQW
             resourceId: hp-site-b-01
-            measurementType: siteImport
-            value: 4.1
+            measurementType: measuredPower
+            value: -3
             unit: kW
             resourceTimestamp: null
             serverTimestamp: 1788344077549

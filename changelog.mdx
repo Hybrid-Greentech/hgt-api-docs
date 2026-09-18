@@ -26,7 +26,7 @@ Entries are tagged by system.
 
   The EV charger and heat pump APIs are replaced by a single [Distributed Energy Resources API](/distributed-resources/quickstart) (v1.0.0) on the `v2` topic prefix. One message set now serves every resource type. Resource type determines two things only: which metrics the resource publishes, and which `configuration` block it declares at registration.
 
-  Batteries join as `bess`, at residential and small commercial scale. CHP joins as `chp`, power-to-X as `p2x`, and `misc` is the catch-all for dispatchable equipment with no resource type of its own yet. Those three publish the same five metrics as a heat pump and declare an empty `configuration`. Photovoltaics join as `pv`, publishing the same five metrics and declaring the array's coordinates and module orientation, which production forecasting reads.
+  Batteries join as `bess`, at residential and small commercial scale. CHP joins as `chp`, power-to-X as `p2x`, and `misc` is the catch-all for dispatchable equipment with no resource type of its own yet. Those three publish the same three metrics as a heat pump and declare an empty `configuration`. Photovoltaics join as `pv`, publishing the same three metrics and declaring the array's coordinates and module orientation, which production forecasting reads.
 
   Both v1 APIs stay published and fully operational. **No sunset date is set.** New integrations use v2. Migration is per resource: a resource is on v1 or on v2 depending on which topic prefix it publishes to, and the platform dispatches it on the version it is registered against.
 
@@ -52,9 +52,8 @@ Entries are tagged by system.
 
   - **Six channels**, all on `{priceZone}/{customerName}/v2/`: `register`, `update`, `measurements`, `events`, `activation`, and `acknowledgement`. Site and portfolio stay off the topic, so a resource that changes portfolio keeps its topic and its credentials.
   - **QoS and retain are declared in the spec**, in `bindings.mqtt`, rather than described in prose. Measurements are QoS 0, everything else QoS 1, and nothing is retained.
-  - **Eight metrics**, additive by resource type: 3 for `evCharger`; 5 for `heatPump`, `chp`, `p2x`, `pv`, and `misc`; 8 for `bess`. One `measurementType` and one `value` per message. See [Metrics](/data-standards/metrics#distributed-energy-resources).
+  - **Six metrics**, additive by resource type: 3 for `evCharger`, `heatPump`, `chp`, `p2x`, `pv`, and `misc`; 6 for `bess`. One `measurementType` and one `value` per message. See [Metrics](/data-standards/metrics#distributed-energy-resources).
   - **A published change threshold** of ±1 kW absolute on the resource power metrics. It obliges an additional immediate sample and does not replace the periodic bound.
-  - **`siteImport` and `siteExport`** for every resource type except `evCharger`. They are for monitoring and settlement, and are explicitly not a dispatch input.
   - **Acknowledgements for every resource type**, heat pumps included, carrying `activationId` and a resource-agnostic `acceptance` enum with free-text `reason`.
   - **Four resource states** — `Available`, `Unavailable`, `Activated`, `Faulted`. OCPP session states move to an optional `sessionState` field. Publishing the transition to `Unavailable` is mandatory.
   - **No heartbeat message.** Liveness rests on the connection's Last Will and Testament, mandatory `Unavailable` events, and gap detection against the market data frequency.
@@ -63,7 +62,7 @@ Entries are tagged by system.
 
   - **A setpoint is a target, not a ceiling.** Apply the nearest value your `controlGranularity` allows and let `measuredPower` report the result.
   - **A release is not a setpoint of zero.** `0` kW is a valid instruction to hold zero power; only `Release` returns the resource to its own control logic. The Delegated Operators convention, where `setpoint.value: 0` deactivates an asset, does not apply to resources.
-  - **Available power is headroom from the current operating point**, already net of every reservation and planned event outside the platform's control. It floors at `0` and never exceeds what the equipment can physically reach.
+  - **Available power is headroom from the current operating point**, already net of every reservation and planned event outside the platform's control, including any cap the site's metered connection point imposes on what the resource may import or export. It floors at `0` and never exceeds what the equipment can physically reach. There is no separate site-metering metric: a site limit reaches dispatch through available power or not at all.
 
   <Note>
     The v1 heat pump quickstart describes `availableUpKw` and `ActivationUp` as the inverse of the platform's actual semantics. Those pages stay as published; the correct mapping is in [The v1 heat pump direction error](/distributed-resources/migration#the-v1-heat-pump-direction-error). If your v1 integration was written against that description, your upward values and your response to `ActivationUp` are inverted today.

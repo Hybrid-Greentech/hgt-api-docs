@@ -111,15 +111,13 @@ Document your estimation method during onboarding. The platform cannot audit an 
 
 ## Distributed energy resources
 
-Resources publish a registry of eight metrics on the `measurements` channel, keyed on **resource type**. Every metric carries one `measurementType` and one `value` per message.
+Resources publish a registry of six metrics on the `measurements` channel, keyed on **resource type**. Every metric carries one `measurementType` and one `value` per message.
 
 | Metric | `measurementType` | Type | Unit | Periodic bound | Change threshold |
 |--------|-------------------|------|------|----------------|------------------|
 | Measured power | `measuredPower` | Float, signed | kW | Market data frequency | ±1 kW |
 | Available power up | `availablePowerUp` | Float, unsigned | kW | Market data frequency | ±1 kW |
 | Available power down | `availablePowerDown` | Float, unsigned | kW | Market data frequency | ±1 kW |
-| Site import | `siteImport` | Float, unsigned | kW | 1 s | ±1 kW |
-| Site export | `siteExport` | Float, unsigned | kW | 1 s | ±1 kW |
 | State of charge | `stateOfCharge` | Float, 0–100 inclusive | % | 1 s | Periodic only |
 | Available energy up | `availableEnergyUp` | Float, unsigned | kWh | 1 s | Periodic only |
 | Available energy down | `availableEnergyDown` | Float, unsigned | kWh | 1 s | Periodic only |
@@ -128,21 +126,14 @@ The obligation is additive:
 
 | `resourceType` | Publishes |
 |----------------|-----------|
-| `evCharger` | Measured power, available power up, available power down |
-| `heatPump` | The above, plus site import and site export |
-| `chp` | The same five as `heatPump` |
-| `p2x` | The same five as `heatPump` |
-| `pv` | The same five as `heatPump` |
-| `misc` | The same five as `heatPump` |
-| `bess` | The same five, plus state of charge, available energy up, and available energy down |
+| `evCharger`, `heatPump`, `chp`, `p2x`, `pv`, `misc` | Measured power, available power up, available power down |
+| `bess` | The above three, plus state of charge, available energy up, and available energy down |
 
 The change threshold is an absolute ±1 kW, with no percentage floor. It obliges an **additional** immediate sample and does not reset the interval: a sample is still due at the periodic bound even when the value has not moved.
 
 `measuredPower` is signed on the generator convention — export positive, import negative — and is mandatory for every resource type. Available power is headroom from the current operating point, so a setpoint is only interpretable against a measured position.
 
-`siteImport` and `siteExport` describe the site's metered connection point rather than the resource. They exist for monitoring and settlement and are **not** a dispatch input: available power is the authoritative dispatch limit. The platform does not track which resources share a site, so co-sited resources carry no cross-resource consistency obligation.
-
-EV chargers do not publish site import and export. Every other resource type publishes them.
+Available power is the only dispatch limit the platform reads, so site constraints belong inside it. Where the metered connection point, a site controller, or other equipment behind the same meter caps what a resource may import or export, publish available power net of that cap. The platform holds no site-meter reading of its own and does not track which resources share a site, so headroom that ignores the connection point is headroom it will dispatch into.
 
 <Warning>
   `stateOfCharge`, `availableEnergyUp`, and `availableEnergyDown` are not derivable from one another. Reservations outside the platform's control move the usable floor and ceiling independently of the state of charge. Publish all three as sampled values.
