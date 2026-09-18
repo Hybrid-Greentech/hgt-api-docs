@@ -12,7 +12,8 @@ The requirements cover every integration surface:
 | Integration | What these pages govern |
 |-------------|-------------------------|
 | Delegated Operators API | All metrics, bounds, and compliance rules |
-| EV charger and heat pump APIs | Bounds and compliance rules, applied to the metrics those APIs already carry |
+|  | All metrics, bounds, and compliance rules |
+| EV charger and heat pump v1 APIs | Bounds and compliance rules, applied to the metrics those deprecated APIs already carry |
 | Direct PPC and OEM hardware | Bounds, applied over the registers in the [Signal List](/controller/signal-list) |
 
 You are responsible for meeting these requirements. Hybrid Greentech verifies them at prequalification and when investigating an operational incident. The platform does not publish a compliance feed, so the absence of a warning is not confirmation that an integration is compliant.
@@ -25,7 +26,7 @@ Two keys determine every requirement, and they compose. Neither one alone tells 
 
 | Key | Determines | Defined in |
 |-----|------------|------------|
-| Device type | **Which** metrics you publish | [Metrics](/data-standards/metrics) |
+| Device type, or resource type | **Which** metrics you publish | [Metrics](/data-standards/metrics) |
 | Market | **How fast** those metrics flow, and how fast the asset answers | [Market requirements](/data-standards/markets) |
 
 A battery and a heat pump publish different metrics. The same battery delivering FFR and delivering mFRR publishes the same metrics at very different rates.
@@ -52,7 +53,7 @@ An asset that is not prequalified for any ancillary market can serve `wholesale`
 The platform measures **roundtrip asset response** from a setpoint it sent. That gives a single rule:
 
 <Info>
-  A roundtrip bound applies to an asset if and only if the platform issues activations to it.
+  A roundtrip bound applies to an asset or a resource if and only if the platform issues activations to it.
 </Info>
 
 | Arrangement | What the platform sends | Roundtrip applies |
@@ -68,6 +69,8 @@ For assets integrated through the Delegated Operators API:
 - **Every other market may be local.** FCR-family products are frequency-triggered and can be computed on site, provided the asset meets the TSO profile.
 
 Frequency-responsive markets under platform control require Hybrid Greentech's own frequency measurement and setpoint computation on site. A sub-second response cannot be closed over a cloud roundtrip.
+
+Resources are always under platform control. The platform issues them setpoints directly, with no task layer, so the roundtrip bound always applies. A resource additionally acknowledges every activation, which separates a refusal to actuate from a lost link — see [Compliance](/data-standards/compliance#transport).
 
 ---
 
@@ -91,7 +94,7 @@ Existing integrations remain compliant until their next prequalification. New in
     Data frequency, roundtrip response, delivery lag, and TSO activation profiles per market.
   </Card>
   <Card title="Metrics" icon="list-check" href="/data-standards/metrics">
-    What each device type publishes, with types, units, and baseline rules.
+    What each device type and resource type publishes, with types, units, and baseline rules.
   </Card>
   <Card title="Compliance" icon="clipboard-check" href="/data-standards/compliance">
     How bounds are assessed, value integrity, clocks, transport, and prequalification.

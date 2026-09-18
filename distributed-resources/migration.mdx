@@ -1,0 +1,320 @@
+---
+title: Migrating to v2
+description: Field-by-field migration from the EV charger and heat pump v1 APIs to the resource-agnostic v2 API.
+---
+
+## Scope
+
+The v1 EV charger and heat pump APIs remain published and fully operational. No sunset date is set. New integrations use v2; existing integrations migrate when it suits them.
+
+Migration is per resource. A resource is on v1 or on v2 depending on which topic prefix it publishes to, and the platform dispatches it on the version it is registered against.
+
+<Warning>
+  Read [Hazard 1](#hazard-1-—-the-ev-sign-convention-inverts) before writing any code. It is the only change that leaves a plausible-looking value on the wire while being wrong, so no test or schema validation catches it.
+</Warning>
+
+---
+
+## The nine hazards
+
+### Hazard 1 — the EV sign convention inverts
+
+v1 `power_kw` is positive for consumption. v2 `measuredPower` follows the generator convention: **export is positive, import is negative**. A charge point drawing 7.2 kW published `7.2` under v1 and publishes `-7.2` under v2.
+
+The magnitude is unchanged, the schema accepts either, and the value stays inside every plausible range. A missed sign flip reports a charge point exporting 7.2 kW to the grid.
+
+### Hazard 2 — heat pump `availablePowerDown` is a recomputation, not a rename
+
+| | v1 `availableDownKw` | v2 `availablePowerDown` |
+|---|---|---|
+| Covers | The backup heater alone | Compressor headroom **plus** the backup heater |
+
+Under v1 the platform issued a directional command that engaged the backup heater specifically, so downward capability meant heater capacity. Under v2 you receive an absolute setpoint and stage your own equipment, so downward capability is everything you can use to increase consumption.
+
+Renaming the field under-reports downward capability by the resource's entire compressor headroom.
+
+### Hazard 3 — `availablePowerUp` is a straight rename
+
+v1 `availableUpKw` and v2 `availablePowerUp` are the same quantity: the consumption the resource can shed from its current operating point. Rename it and publish it on the measurements channel as `measurementType: "availablePowerUp"`.
+
+See [The v1 heat pump direction error](#the-v1-heat-pump-direction-error) — the v1 quickstart describes this field as the inverse of what the platform does with it.
+
+### Hazard 4 — heat pumps must now publish `measuredPower`
+
+Heat pumps publish no active power under v1. Under v2 `measuredPower` is mandatory for every resource type.
+
+Available power is headroom from the current operating point, and an absolute setpoint is only interpretable against a measured position. The obligation exists to make the two commensurable, not to collect telemetry.
+
+### Hazard 5 — heat pump activation goes directional to absolute
+
+v1 sent `ActivationUp` or `ActivationDown` with no magnitude. v2 sends a signed `setpoint` in kW, and the resource decides which equipment to stage to reach it.
+
+This is why `controlGranularity` is required at registration. Declare your reachable setpoints as a step list, and apply the nearest one:
+
+```json title="A heat pump's declared steps"
+{
+  "mode": "Steps",
+  "stepsKw": [-9, -6, -3, -1.5, 0]
+}
+```
+
+A resource that declared these steps and receives `-4` applies `-3`. It does not refuse the command, and it does not synthesise `-4`.
+
+### Hazard 6 — EV activation commands are renamed and the magnitude is signed
+
+| v1 | v2 |
+|----|----|
+| `activation: "SetPowerLimit"` | `activation: "Setpoint"` |
+| `activation: "ClearPowerLimit"` | `activation: "Release"` |
+| `power_limit_kw: 3.7` | `setpoint: -3.7` |
+| `ends_at` | `endsAt`, now mandatory on every setpoint |
+
+A `Release` carries no `setpoint` and no `endsAt`, rather than carrying them as `null`.
+
+<Warning>
+  A release is not a setpoint of `0`. Zero power is a valid instruction to hold zero, and the resource stays under platform control until it is released. Do not collapse the two.
+</Warning>
+
+### Hazard 7 — EV registration gains a required rated-power envelope
+
+v1 EV registration has no rated-power field at all. v2 requires `maxImportKw`, `maxExportKw`, and `controlGranularity` for every resource.
+
+```json title="What an EV charger now declares"
+{
+  "maxImportKw": 11,
+  "maxExportKw": 0,
+  "controlGranularity": {
+    "mode": "Continuous",
+    "minKw": -11,
+    "maxKw": -1.4
+  }
+}
+```
+
+`maxExportKw` is `0` for a resource that cannot export. The continuous band stops short of zero because a charge point cannot hold an arbitrarily small current; below the band the only reachable setpoint is `0`.
+
+### Hazard 8 — EV payloads go snake_case to camelCase
+
+Every field name changes on every EV channel. See [EV charger field mapping](#ev-charger-field-mapping).
+
+The envelope also flattens on the heat pump side: v2 has no nested `payload` wrapper on any channel.
+
+### Hazard 9 — removed channels and fields
+
+| Removed | Why |
+|---------|-----|
+| `v1/bulk/activation` | Bulk control was never supported by the platform |
+| `v1/bulk/acknowledgement` | Paired with bulk activation |
+| `v1/bulk/register` | Registration is one channel with an always-array payload |
+| `v1/schedules/zonal` | Forward-looking availability is not a dispatch input |
+| EV `schedule` (`starts_at` / `ends_at`) | Same reason. Available power carries unavailability at second granularity, not daily |
+| `markets` | Market enrolment is commercial data the platform owns |
+| `time_since_heartbeat` | There is no heartbeat message on this API |
+| `sent_at` on acknowledgements | Redundant with the activation's own `serverTimestamp` |
+| `domain` on events | `severity` plus a free-text `code` replaces it |
+| `market_relationships.operator` | Portfolio membership is platform-minted, not partner-declared |
+
+---
+
+## Topic mapping
+
+| v1 topic | v2 topic |
+|----------|----------|
+| `v1/register` | `v2/register` |
+| `v1/bulk/register` | `v2/register` — always an array |
+| `v1/update/{resourceId}` | `v2/update/{resourceId}` |
+| `v1/power/{resourceId}` (EV) | `v2/measurements/{resourceId}` |
+| `v1/measurement/{resourceId}` (heat pump) | `v2/measurements/{resourceId}` |
+| `v1/status/{resourceId}` (EV) | `v2/events/{resourceId}` |
+| `v1/event/{resourceId}` (heat pump) | `v2/events/{resourceId}` |
+| `v1/activation/{resourceId}` | `v2/activation/{resourceId}` |
+| `v1/acknowledgement/{resourceId}` | `v2/acknowledgement/{resourceId}` |
+| `v1/bulk/activation` | Removed |
+| `v1/bulk/acknowledgement` | Removed |
+| `v1/schedules/zonal` | Removed |
+
+Site and portfolio do not appear in either version's topic. A resource that changes portfolio keeps its topic and its credentials.
+
+---
+
+## EV charger field mapping
+
+### Envelope
+
+| v1 | v2 |
+|----|----|
+| `event_id` | `messageId` |
+| `resource_id` | `resourceId` |
+| `timestamp_evse` | `resourceTimestamp` |
+| `timestamp_server` | `serverTimestamp` |
+| `timestamp` | `serverTimestamp` on activations, `timestamp` on registration and update |
+
+### Registration
+
+| v1 | v2 |
+|----|----|
+| `capability` | `capability` |
+| `capability_configuration.scale_start` | `capabilityConfiguration.scaleStart` |
+| `capability_configuration.scale_end` | `capabilityConfiguration.scaleEnd` |
+| `capability_configuration.bin_size` | `capabilityConfiguration.binSize` |
+| `current_type` | `configuration.currentType`, now required |
+| `subscription_status` | `subscriptionStatus` |
+| `market_relationships.balance_responsible_party` | `marketRelationships.balanceResponsibleParty` |
+| `market_relationships.retailer` | `marketRelationships.retailer` |
+| `market_relationships.operator` | Removed |
+| `markets` | Removed |
+| `schedule` | Removed |
+| — | `resourceType: "evCharger"`, required |
+| — | `maxImportKw`, `maxExportKw`, `controlGranularity`, required |
+
+`capability` survives as a declared feature tier, but the setpoints a resource can reach now come from `controlGranularity`. `DynamicBinning` remains accepted and remains unused at runtime.
+
+### Measurements
+
+| v1 | v2 |
+|----|----|
+| `power_kw: 7.2` | `measurementType: "measuredPower"`, `value: -7.2`, `unit: "kW"` |
+| — | `measurementType: "availablePowerUp"`, required |
+| — | `measurementType: "availablePowerDown"`, required |
+
+One metric per message.
+
+### Events
+
+| v1 `status` | v2 |
+|-------------|----|
+| `Available` | `resourceState: "Available"` |
+| `Unavailable` | `resourceState: "Unavailable"` |
+| `Faulted` | `resourceState: "Faulted"` |
+| `Offline` | `resourceState: "Unavailable"` — or let the Last Will and Testament publish it |
+| `Charging`, `Preparing`, `SuspendedEV`, `SuspendedEVSE`, `Reserved` | `sessionState`, alongside a `resourceState` |
+
+The OCPP session states describe a charging session, not a readiness to be dispatched, so they move out of the state field and into the optional `sessionState` field. Every event now carries `eventKind`, `resourceState`, and `severity`.
+
+### Acknowledgements
+
+| v1 `acceptance` | v2 `acceptance` | v2 `reason` |
+|-----------------|-----------------|-------------|
+| `Accepted` | `Accepted` | — |
+| `RejectedByEvse` | `Rejected` | — |
+| `EvseOffline` | `Offline` | — |
+| `EvDisconnected` | `NotAvailable` | `No vehicle connected` |
+| `NoEvCharging` | `NotAvailable` | `Vehicle connected but not charging` |
+| `InvalidEvseId` | `InvalidResourceId` | — |
+| `InvalidMessageFormat` | `InvalidMessageFormat` | — |
+| `InternalError` | `InternalError` | — |
+| `Unauthorised` | `Unauthorised` | — |
+
+The v2 enum is resource-agnostic. Anything specific to a resource type moves into the free-text `reason`.
+
+`activationId` is new and required: it carries the `messageId` of the activation being answered. `sent_at` is removed and `executed_at` becomes `executedAt`.
+
+---
+
+## Heat pump field mapping
+
+### Envelope
+
+| v1 | v2 |
+|----|----|
+| `eventId` | `messageId` |
+| `payload.{...}` | Flattened — no wrapper on any channel |
+| `payload.resourceTimestamp` | `resourceTimestamp` |
+| `payload.serverTimestamp` | `serverTimestamp` |
+
+### Registration
+
+| v1 | v2 |
+|----|----|
+| `payload[]` | `resources[]` |
+| `resourceId` | `resourceId` |
+| `subscriptionStatus` | `subscriptionStatus` |
+| `priceZone` | Removed — it is already in the topic |
+| `configuration.compressorRatedPowerKW` | `configuration.compressorRatedPowerKw` |
+| `configuration.backupHeaterRatedPowerKW` | `configuration.backupHeaterRatedPowerKw` |
+| — | `resourceType: "heatPump"`, required |
+| — | `maxImportKw`, `maxExportKw`, `controlGranularity`, `marketRelationships`, required |
+
+Note the case change on the rated-power fields: `KW` becomes `Kw`.
+
+### Measurements
+
+| v1 | v2 |
+|----|----|
+| `availableUpKw` | `measurementType: "availablePowerUp"` — same quantity |
+| `availableDownKw` | `measurementType: "availablePowerDown"` — **recomputed**, see [Hazard 2](#hazard-2-—-heat-pump-availablepowerdown-is-a-recomputation-not-a-rename) |
+| — | `measurementType: "measuredPower"`, required |
+
+### Events
+
+| v1 `status` | v2 `resourceState` |
+|-------------|--------------------|
+| `Available` | `Available` |
+| `Unavailable` | `Unavailable` |
+| `ActivatedUp` | `Activated` |
+| `ActivatedDown` | `Activated` |
+
+Direction is carried by the activation, so the two directional states collapse into one.
+
+### Activations
+
+| v1 | v2 |
+|----|----|
+| `activation: "ActivationUp"` | `activation: "Setpoint"`, with `setpoint` above the current `measuredPower` |
+| `activation: "ActivationDown"` | `activation: "Setpoint"`, with `setpoint` below the current `measuredPower` |
+| `activation: "Release"` | `activation: "Release"` |
+| `endsAt` | `endsAt`, mandatory on every setpoint |
+
+### Acknowledgements
+
+Heat pumps send no acknowledgements under v1. Under v2 the acknowledgement channel is mandatory for every resource type. See [Step 5 of the quickstart](/distributed-resources/quickstart#step-5-—-acknowledge-activations).
+
+---
+
+## The v1 heat pump direction error
+
+The v1 heat pump quickstart describes upward and downward regulation as the inverse of what the platform does. Those pages stay published as they are, so the correct mapping is recorded here.
+
+| Field or command | What the v1 page says | What the platform does with it |
+|------------------|-----------------------|-------------------------------|
+| `availableUpKw` | How much power the compressor can *increase* by | The consumption the compressor can *shed* |
+| `ActivationUp` | Run the compressor at full power to consume excess grid power | *Reduce* compressor consumption |
+| `ActivationDown` | Engage the backup heater to consume downward flexibility | Engage the backup heater — correct, and the only row that matches |
+
+Upward regulation always means the resource injects more power to the grid, and for consume-only equipment that means consuming less. Downward regulation always means it absorbs more.
+
+<Warning>
+  If your v1 integration was written against the quickstart's description rather than against the platform's behaviour, your `availableUpKw` values and your response to `ActivationUp` are inverted today. Fix the direction as part of the migration, not after it.
+</Warning>
+
+---
+
+## Migration order
+
+<Steps>
+  ### Register the resource on v2
+
+  Publish to `v2/register` with `resourceType`, the rated-power envelope, and `controlGranularity`. The resource now exists on both versions.
+
+  ### Set the Last Will and Testament
+
+  Point it at `v2/events/{resourceId}` with `resourceState: "Unavailable"`. There is no heartbeat message to replace it with.
+
+  ### Move telemetry
+
+  Publish the v2 metric set on `v2/measurements/{resourceId}`, one metric per message. Check the sign on `measuredPower` against a resource you can observe physically.
+
+  ### Move events
+
+  Publish `eventKind`, `resourceState`, and `severity` on `v2/events/{resourceId}`. Add `sessionState` for EV chargers that report OCPP session state.
+
+  ### Subscribe to v2 activations and acknowledge them
+
+  Subscribe to `v2/activation/{resourceId}` and answer every activation on `v2/acknowledgement/{resourceId}`, carrying `activationId`.
+
+  ### Stop publishing on v1
+
+  Once the platform is dispatching the resource on v2, retire the v1 topics for that resource.
+</Steps>
+
+Both versions run in parallel for as long as you need. The platform dispatches a resource on the version it is registered against.
