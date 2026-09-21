@@ -603,7 +603,10 @@ components:
         currentType:
           type: string
           description: |
-            Whether the charge point delivers alternating or direct current.
+            Whether the charge point delivers alternating or direct current. Control
+            granularity follows from it: an `AC` charge point is commanded in whole
+            amps and declares `Steps`, a `DC` charge point follows any power setpoint
+            inside its band and declares `Continuous`.
           enum:
             - AC
             - DC
@@ -1062,7 +1065,7 @@ components:
         $ref: '#/components/schemas/registerResourcesPayload'
       examples:
         - name: registerEvCharger
-          summary: A single AC charge point
+          summary: A single three-phase AC charge point, commanded in whole amps
           payload:
             messageId: 01M1GST35A5N67FK9NNRF1JRJZ
             timestamp: 1788344077482
@@ -1073,9 +1076,8 @@ components:
                 maxImportKw: 11
                 maxExportKw: 0
                 controlGranularity:
-                  mode: Continuous
-                  minKw: -11
-                  maxKw: -1.4
+                  mode: Steps
+                  stepsKw: [-11, -10.4, -9.7, -9, -8.3, -7.6, -6.9, -6.2, -5.5, -4.8, -4.1, 0]
                 marketRelationships:
                   balanceResponsibleParty:
                     code: '5790001234567'

@@ -75,23 +75,22 @@ A `Release` carries no `setpoint` and no `endsAt`, rather than carrying them as 
   A release is not a setpoint of `0`. Zero power is a valid instruction to hold zero, and the resource stays under platform control until it is released. Do not collapse the two.
 </Warning>
 
-### Hazard 7 — EV registration gains a required rated-power envelope
+### Hazard 7 — EV registration gains a required rated-power envelope, and AC granularity is stepped
 
 v1 EV registration has no rated-power field at all. v2 requires `maxImportKw`, `maxExportKw`, and `controlGranularity` for every resource.
 
-```json title="What an EV charger now declares"
+```json title="What an AC charge point now declares"
 {
   "maxImportKw": 11,
   "maxExportKw": 0,
   "controlGranularity": {
-    "mode": "Continuous",
-    "minKw": -11,
-    "maxKw": -1.4
+    "mode": "Steps",
+    "stepsKw": [-11, -10.4, -9.7, -9, -8.3, -7.6, -6.9, -6.2, -5.5, -4.8, -4.1, 0]
   }
 }
 ```
 
-`maxExportKw` is `0` for a resource that cannot export. The continuous band stops short of zero because a charge point cannot hold an arbitrarily small current; below the band the only reachable setpoint is `0`.
+`maxExportKw` is `0` for a resource that cannot export. Granularity follows the current type: an AC charge point is commanded in whole amps, so it declares `Steps` — here one setpoint per amp from 6 A to 16 A across three phases, plus `0`. A DC charge point declares `Continuous` with a band, because its converter follows any power setpoint. Neither reaches arbitrarily small power: below the lowest step, or below `minKw`, the only reachable setpoint is `0`.
 
 ### Hazard 8 — EV payloads go snake_case to camelCase
 
