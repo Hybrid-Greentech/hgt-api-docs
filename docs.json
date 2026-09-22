@@ -3,17 +3,20 @@
   "theme": "mint",
   "name": "Hybrid Greentech",
   "colors": {
-    "primary": "#194366",
-    "light": "#FFCE00",
-    "dark": "#194366"
+    "primary": "#0F8189",
+    "light": "#39A8B3",
+    "dark": "#0B6E77"
   },
   "background": {
     "color": {
-      "light": "#FFFFFF",
-      "dark": "#142330"
+      "light": "#FAFAF7",
+      "dark": "#0C1F25"
     }
   },
-  "favicon": "/favicon.svg",
+  "favicon": {
+    "light": "/favicon.png",
+    "dark": "/favicon-dark.png"
+  },
   "navigation": {
     "tabs": [
       {
@@ -32,7 +35,7 @@
       },
       {
         "tab": "Individual Sites",
-        "icon": "solar-panel",
+        "icon": "plug-zap",
         "groups": [
           {
             "group": "Get started",
@@ -58,7 +61,7 @@
       },
       {
         "tab": "Distributed Energy Resources",
-        "icon": "bolt",
+        "icon": "zap",
         "groups": [
           {
             "group": "Get started",
@@ -112,7 +115,7 @@
       },
       {
         "tab": "OEM Integration",
-        "icon": "industry",
+        "icon": "factory",
         "groups": [
           {
             "group": "Get started",
@@ -122,7 +125,7 @@
       },
       {
         "tab": "Data Standards",
-        "icon": "gauge-high",
+        "icon": "gauge",
         "groups": [
           {
             "group": "Get started",
@@ -140,7 +143,7 @@
       },
       {
         "tab": "API Reference",
-        "icon": "puzzle-piece",
+        "icon": "braces",
         "groups": [
           {
             "group": "Overview",
@@ -159,6 +162,18 @@
   "logo": {
     "light": "/logo/light.png",
     "dark": "/logo/dark.png"
+  },
+  "fonts": {
+    "family": "PP Neue Montreal",
+    "weight": 400,
+    "source": "/fonts/PPNeueMontreal-Regular.woff2",
+    "format": "woff2"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "styling": {
+    "codeblocks": "dark"
   },
   "contextual": {
     "options": [

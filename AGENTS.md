@@ -42,6 +42,19 @@ Schema and field descriptions in `api-reference/asyncapi/` follow the Stripe API
 - Don't sell, hedge, or explain platform internals. Say what the value is and what the integrator does with it.
 - Second person belongs in the MDX guides, which describe flow and policy. The reference describes data.
 
+## Design system
+
+The site runs on the Hybrid Greentech design system. Read `skill://hybrid-greentech-design` before touching appearance.
+
+- `docs.json` holds what Mintlify configures natively: brand colours, PP Neue Montreal (Regular 400), the Lucide icon library, ink code blocks.
+- `hgt-design.css` is the token layer — every colour, size, radius, shadow and duration is a `--hgt-*` variable taken from the system. Never introduce a value that is not in the system; use the nearest token.
+- `style.css` holds only the AsyncAPI pill relabelling and its brand recolour.
+- Dark theme is a token override on `html.dark`. Never fork a rule per theme where a token can carry it.
+- Teal is charge, orange is discharge. Both are directional signals, never decoration, and never a call to action.
+- Icons are Lucide, outline only, 1.75 stroke, from the system's glyph vocabulary (`zap`, `plug-zap`, `gauge`, `arrow-right-left`, …). No emoji.
+- Brand assets are real files, never approximations: `logo/light.png` (ink lockup), `logo/dark.png` (white lockup), `favicon.png` / `favicon-dark.png` (the mark alone, cropped from the lockup), `fonts/PPNeueMontreal-*.woff2`.
+- Numbers, prices, timestamps, IDs and units set in IBM Plex Mono with tabular figures.
+
 ## Content boundaries
 
 - Document the three real-time integration surfaces (Delegated Operators, EV Chargers, Heat Pumps) and the OEM/PPC direct-hardware path. Don't document internal dashboard/reporting features — those are mentioned only as "available via our dashboard platform", never detailed here.
