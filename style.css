@@ -34,3 +34,23 @@
 .method-nav-pill {
   width: auto !important;
 }
+
+/* Orange is the discharge direction in the HGT system, never decoration, and
+   Mintlify tints this badge orange by default. Set it in ink instead: white on
+   ink-900 is 17.0:1, which an 11px badge needs. In dark the fill inverts to
+   bone with ink text, because an ink chip on the ink page ground disappears.
+   The sidebar chip is painted on the inner span, the header one on the pill
+   itself. See hgt-design.css for the token layer these values come from. */
+.method-pill,
+.method-nav-pill > span {
+  background-color: var(--hgt-ink-900, #0c1f25) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  border-radius: var(--hgt-radius-xs, 3px) !important;
+}
+
+html.dark .method-pill,
+html.dark .method-nav-pill > span {
+  background-color: #e2e2d8 !important;
+  color: var(--hgt-ink-900, #0c1f25) !important;
+}
