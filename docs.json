@@ -164,10 +164,8 @@
     "dark": "/logo/dark.png"
   },
   "fonts": {
-    "family": "PP Neue Montreal",
-    "weight": 400,
-    "source": "/fonts/PPNeueMontreal-Regular.woff2",
-    "format": "woff2"
+    "family": "DM Sans",
+    "weight": 400
   },
   "icons": {
     "library": "lucide"

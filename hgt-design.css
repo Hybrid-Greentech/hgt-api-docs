@@ -4,35 +4,21 @@
 
    Token names are kept in the variable names so a value can be traced back to
    the system. `docs.json` carries what Mintlify configures natively (brand
-   colours, PP Neue Montreal, Lucide icons, ink code blocks); everything that
+   colours, DM Sans, Lucide icons, ink code blocks); everything that
    needs a selector lives here.
 
    Dark theme is a token override on `html.dark` — no component is forked. */
 
-/* IBM Plex Mono stands in for an unsupplied house mono; it sets every number,
+/* Both families come from Google Fonts in one request. DM Sans replaces the
+   licensed PP Neue Montreal as the sans; Regular 400, Semibold 600 and Italic
+   400 are the only cuts used — never synthesise a light or a black. docs.json
+   registers the family so Mintlify's own variables point at it, but Mintlify
+   emits a single @font-face per family, so the 600 and italic cuts are loaded
+   here.
+
+   IBM Plex Mono stands in for an unsupplied house mono; it sets every number,
    price, timestamp, ID and unit, always with tabular figures. */
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap");
-
-/* docs.json registers Regular 400 only — Mintlify emits a single @font-face per
-   family, so a `heading` entry with the same family is dropped and headings get
-   a synthesised bold. Semibold 600 and Italic are declared here instead. Only
-   these three cuts exist; never synthesise a light or a black. */
-@font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/fonts/PPNeueMontreal-Semibold.woff2") format("woff2");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Italic is for emphasis inside prose — never headings or UI. */
-@font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/fonts/PPNeueMontreal-Italic.woff2") format("woff2");
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap");
 
 :root {
   /* Surfaces */
