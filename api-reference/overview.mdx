@@ -3,19 +3,18 @@ title: API reference
 description: The three real-time integration surfaces exposed by the HGT platform.
 ---
 
-Hybrid Greentech's platform is reached over MQTT-based, event-driven APIs — one per integration surface. Each is specified with AsyncAPI and rendered below with the full channel, message, and schema reference.
+Hybrid Greentech's platform is reached over MQTT-based, event-driven APIs — one per integration surface. Each is specified with AsyncAPI, and the full channel, message, and schema reference is rendered inside that surface's own tab.
 
-<CardGroup cols={3}>
-  <Card title="Delegated Operators" icon="plug" href="/delegated-operators/welcome">
-    Third-party dispatch of grid assets: tasks, activations, and telemetry over MQTT, plus a REST layer for discovery and monitoring.
+<CardGroup cols={2}>
+  <Card title="Delegated Operators" icon="plug-zap" href="/delegated-operators/welcome">
+    Third-party dispatch of grid assets: tasks, activations, and telemetry over MQTT, plus a REST layer for discovery and monitoring. Its equipment are **assets**.
   </Card>
-  <Card title="EV Chargers" icon="car-side" href="/ev-chargers/quickstart">
-    OCPP-compatible EV charge point registration, telemetry, and activation over MQTT.
-  </Card>
-  <Card title="Heat Pumps" icon="temperature-half" href="/heat-pumps/quickstart">
-    Directional availability and activation for heat pump DERs over MQTT.
+  <Card title="Distributed Energy Resources" icon="zap" href="/distributed-resources/welcome">
+    One API for every resource type — EV chargers, heat pumps, batteries, CHP, P2X, PV, and other equipment: registration, telemetry, absolute setpoints, and acknowledgements over MQTT. Its equipment are **resources**.
   </Card>
 </CardGroup>
+
+The v1 EV charger and heat pump APIs are deprecated and remain published for existing integrations. See [Migrating to v2](/distributed-resources/migration).
 
 For direct hardware integration (Modbus TCP or IEC104) rather than cloud MQTT/REST, see [OEM Integration](/controller/overview).
 

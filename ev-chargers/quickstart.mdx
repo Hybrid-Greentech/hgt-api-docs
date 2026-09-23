@@ -3,6 +3,10 @@ title: EV Charger Quickstart
 description: Connect OCPP-compatible EV charge points to the HGT platform and start receiving activations.
 ---
 
+<Warning>
+  This API is deprecated. New integrations use the [Distributed Energy Resources API](/distributed-resources/quickstart) on the `v2` topic prefix. This version stays fully operational for existing integrations and no sunset date is set. See [Migrating to v2](/distributed-resources/migration).
+</Warning>
+
 ## Overview
 
 This guide walks through integrating an OCPP-compatible EV charge point (EVSE) with the HGT platform. The integration is MQTT-only — there is no REST layer for EV chargers. Everything happens over a persistent MQTTS connection.

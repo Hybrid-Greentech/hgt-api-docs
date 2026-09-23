@@ -10,7 +10,7 @@ The HGT platform exposes two protocol layers, each with its own versioning model
 | Layer | Protocol | Version carrier |
 |-------|----------|----------------|
 | REST API | HTTPS | URL path prefix (`/v2/...`) |
-| Real-time API | MQTTS (AsyncAPI) | Topic path segment (`/v1/...`) |
+| Real-time API | MQTTS (AsyncAPI) | Topic path segment (`/v2/...`), on the resource API only |
 
 Within a given version, the schemas themselves carry a fine-grained `schema_version` integer for asset specification objects. These three mechanisms work independently and can advance at different rates.
 
@@ -39,7 +39,9 @@ A future version would introduce new endpoints under `/v3/`, leaving `/v2/` rout
 
 ## MQTT topic versioning
 
-MQTT topic paths embed a version segment. The current version is **v1**.
+MQTT topic paths on the distributed energy resources API embed a version segment. Two versions are live.
+
+The deprecated v1 EV charger and heat pump APIs:
 
 ```
 {priceZone}/{customerName}/v1/register
@@ -47,18 +49,21 @@ MQTT topic paths embed a version segment. The current version is **v1**.
 {priceZone}/{customerName}/v1/power/{resourceId}
 ```
 
-A future version would introduce new topic paths under `v2/`:
+The current v2 resource API, which replaces both:
 
 ```
 {priceZone}/{customerName}/v2/register
 {priceZone}/{customerName}/v2/activation/{resourceId}
+{priceZone}/{customerName}/v2/measurements/{resourceId}
 ```
 
-During migration, devices can subscribe to both `v1` and `v2` topics simultaneously. The platform will publish activations on the version(s) a device has registered against.
+Migration is per resource: a resource is on v1 or on v2 depending on which topic prefix it publishes to, and the platform dispatches it on the version it is registered against. No sunset date is set for v1. See [Migrating to v2](/distributed-resources/migration).
+
+The Delegated Operators MQTT API carries no version segment. Its topics are addressed directly, as in `{priceZone}/{customerName}/activation/{assetId}`.
 
 ### Message-level versioning
 
-Within a single topic version, individual message schemas may evolve. The EV charger activation channel demonstrates this: the `Activations` topic carries both a **v1** and a **v2** activation message format, differentiated by the presence of `resource_id` in the payload.
+Within a single topic version, individual message schemas may evolve. The v1 EV charger activation channel demonstrates this: its `Activations` topic carries both a **v1** and a **v2** activation message format, differentiated by the presence of `resource_id` in the payload.
 
 ```
 v1 activation: { event_id, activation, timestamp, power_limit_kw, ends_at }
@@ -89,35 +94,45 @@ The `specifications` field on assets returned by `GET /v2/assets` is an opaque J
 
 ## Expanding to a new version
 
-When a new version is introduced, the following artifacts are updated:
+The v2 resource API is the worked example. When a new version is introduced, these artifacts are updated:
 
 <Steps>
   ### New AsyncAPI spec
 
-  A new file is added under `api-reference/asyncapi/` (e.g., `ev-chargers-v2.yaml`). The existing v1 spec is retained and continues to be published.
+  A new file is added under `api-reference/asyncapi/`. The v2 resource API added `distributed-resources.yaml`; the v1 specs it replaces are retained and continue to be published.
 
   ### Updated docs.json navigation
 
-  A new group is added under the relevant tab, linking both versions in the API reference:
+  The new version leads its tab, and the versions it replaces are retitled and moved below it:
 
   ```json title="docs.json"
   {
-    "group": "EV Chargers v1",
-    "asyncapi": "/api-reference/asyncapi/ev-chargers.yaml"
+    "group": "Distributed Energy Resources (v2)",
+    "asyncapi": {
+      "source": "/api-reference/asyncapi/distributed-resources.yaml",
+      "directory": "api-reference/distributed-resources"
+    }
   },
   {
-    "group": "EV Chargers v2",
-    "asyncapi": "/api-reference/asyncapi/ev-chargers-v2.yaml"
+    "group": "EV Chargers (v1, deprecated)",
+    "asyncapi": {
+      "source": "/api-reference/asyncapi/ev-chargers.yaml",
+      "directory": "api-reference/ev-chargers"
+    }
   }
   ```
 
+  ### Migration guide
+
+  A page mapping every changed field, and leading with the changes that leave a plausible value on the wire while being wrong. See [Migrating to v2](/distributed-resources/migration).
+
   ### Changelog entry
 
-  A changelog entry is published documenting what changed, the migration path, and the sunset date for the previous version.
+  An entry documenting what changed and the migration path. A sunset date is published only when one is set.
 
   ### Deprecation window
 
-  The old version remains fully operational. The platform publishes on both versions until the sunset date.
+  The old version remains fully operational. The platform publishes on both versions for as long as resources are registered against both.
 </Steps>
 
 ---
@@ -126,9 +141,10 @@ When a new version is introduced, the following artifacts are updated:
 
 | API | Spec version | Topic prefix | Status |
 |-----|-------------|-------------|--------|
-| EV Chargers (OCPP) | 3.0.2 | `/v1/` | Current |
-| Heat Pumps | 3.0.1 | `/v1/` | Current |
-| Delegated Operators | 3.0.1 | `tasks/`, `activation/`, `measurements/` | Current |
+| Distributed Energy Resources | 1.0.0 | `/v2/` | Current |
+| EV Chargers (OCPP) | 3.0.2 | `/v1/` | Deprecated. Operational, no sunset date. |
+| Heat Pumps | 3.0.1 | `/v1/` | Deprecated. Operational, no sunset date. |
+| Delegated Operators | 3.2.0 | `tasks/`, `activation/`, `measurements/` | Current |
 | REST (Delegated Operators) | — | `/v2/` | Current |
 
 <Note>

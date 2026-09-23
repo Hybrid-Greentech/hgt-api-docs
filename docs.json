@@ -3,17 +3,20 @@
   "theme": "mint",
   "name": "Hybrid Greentech",
   "colors": {
-    "primary": "#194366",
-    "light": "#FFCE00",
-    "dark": "#194366"
+    "primary": "#0F8189",
+    "light": "#39A8B3",
+    "dark": "#0B6E77"
   },
   "background": {
     "color": {
-      "light": "#FFFFFF",
-      "dark": "#142330"
+      "light": "#FAFAF7",
+      "dark": "#0C1F25"
     }
   },
-  "favicon": "/favicon.svg",
+  "favicon": {
+    "light": "/favicon.png",
+    "dark": "/favicon-dark.png"
+  },
   "navigation": {
     "tabs": [
       {
@@ -32,7 +35,7 @@
       },
       {
         "tab": "Individual Sites",
-        "icon": "solar-panel",
+        "icon": "plug-zap",
         "groups": [
           {
             "group": "Get started",
@@ -58,14 +61,31 @@
       },
       {
         "tab": "Distributed Energy Resources",
-        "icon": "bolt",
+        "icon": "zap",
         "groups": [
           {
             "group": "Get started",
-            "pages": ["distributed-resources/welcome"]
+            "pages": [
+              "distributed-resources/welcome",
+              "distributed-resources/quickstart",
+              "distributed-resources/migration"
+            ]
           },
           {
-            "group": "EV Chargers",
+            "group": "API Reference",
+            "pages": [
+              {
+                "group": "Distributed Energy Resources (v2)",
+                "asyncapi": {
+                  "source": "/api-reference/asyncapi/distributed-resources.yaml",
+                  "directory": "api-reference/distributed-resources"
+                }
+              }
+            ]
+          },
+          {
+            "group": "EV Chargers (v1, deprecated)",
+            "expanded": false,
             "pages": [
               "ev-chargers/quickstart",
               {
@@ -78,7 +98,8 @@
             ]
           },
           {
-            "group": "Heat Pumps",
+            "group": "Heat Pumps (v1, deprecated)",
+            "expanded": false,
             "pages": [
               "heat-pumps/quickstart",
               {
@@ -94,7 +115,7 @@
       },
       {
         "tab": "OEM Integration",
-        "icon": "industry",
+        "icon": "factory",
         "groups": [
           {
             "group": "Get started",
@@ -104,7 +125,7 @@
       },
       {
         "tab": "Data Standards",
-        "icon": "gauge-high",
+        "icon": "gauge",
         "groups": [
           {
             "group": "Get started",
@@ -122,32 +143,11 @@
       },
       {
         "tab": "API Reference",
-        "icon": "puzzle-piece",
+        "icon": "braces",
         "groups": [
           {
             "group": "Overview",
             "pages": ["api-reference/overview", "api-versioning"]
-          },
-          {
-            "group": "Delegated Operators",
-            "asyncapi": {
-              "source": "/api-reference/asyncapi/delegated-operators.yaml",
-              "directory": "api-reference/delegated-operators"
-            }
-          },
-          {
-            "group": "EV Chargers",
-            "asyncapi": {
-              "source": "/api-reference/asyncapi/ev-chargers.yaml",
-              "directory": "api-reference/ev-chargers"
-            }
-          },
-          {
-            "group": "Heat Pumps",
-            "asyncapi": {
-              "source": "/api-reference/asyncapi/heat-pumps.yaml",
-              "directory": "api-reference/heat-pumps"
-            }
           }
         ]
       }
@@ -162,6 +162,16 @@
   "logo": {
     "light": "/logo/light.png",
     "dark": "/logo/dark.png"
+  },
+  "fonts": {
+    "family": "DM Sans",
+    "weight": 400
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "styling": {
+    "codeblocks": "dark"
   },
   "contextual": {
     "options": [

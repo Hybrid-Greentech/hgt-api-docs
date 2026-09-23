@@ -1,0 +1,1475 @@
+asyncapi: 3.0.0
+info:
+  title: Distributed Energy Resources - Registration, Telemetry and Dispatch
+  version: 1.0.0
+  description: >
+    Real-time API for registering distributed energy resources, streaming their
+    telemetry, and dispatching them to a power setpoint. One message set serves
+    every resource type. A resource type determines two things only: which metrics
+    the resource publishes, and which `configuration` variant it declares at
+    registration. Every topic, envelope, and control semantic is shared.
+
+    The supported resource types are `evCharger`, `heatPump`, `bess`, `chp`, `p2x`,
+    `pv`, and `misc`. `misc` is the catch-all for dispatchable equipment that has no
+    type of its own yet.
+
+    This API supersedes the EV charger and heat pump v1 APIs, which remain
+    published and operational for existing integrations. New integrations use this
+    version. Resources are addressed on the `v2` topic prefix, and the platform
+    dispatches a resource on the version it is registered against, so a partner can
+    move a fleet across one resource at a time.
+
+    Assets reached through the Delegated Operators API and equipment driven
+    directly over Modbus or IEC104 are separate surfaces with their own vocabulary.
+    A resource is never an asset.
+defaultContentType: application/json
+servers:
+  sandbox:
+    host: aggregator.gridhub.dev:8883
+    protocol: mqtts
+    description: |
+      Sandbox environment for testing and integration. Carries MQTT over TLS on TCP.
+      Simulated resources only, with no real grid interactions. Use TLS 1.2 or later.
+    security:
+      - $ref: '#/components/securitySchemes/user-password'
+    bindings:
+      mqtt:
+        cleanSession: true
+        bindingVersion: 0.2.0
+  production:
+    host: n1.link.gridhub.ai:8883
+    protocol: mqtts
+    description: |
+      Production environment, carrying MQTT over TLS on TCP. Real grid interactions.
+      Use TLS 1.2 or later.
+    security:
+      - $ref: '#/components/securitySchemes/user-password'
+    bindings:
+      mqtt:
+        cleanSession: true
+        bindingVersion: 0.2.0
+channels:
+  ResourceRegistration:
+    address: '{priceZone}/{customerName}/v2/register'
+    description: >
+      Registration of resources. The payload is always an array, so one resource
+      and a fleet register through the same channel. Registration is not a partial
+      update: publish subsequent changes on the update channel.
+    parameters:
+      priceZone:
+        $ref: '#/components/parameters/priceZone'
+      customerName:
+        $ref: '#/components/parameters/customerName'
+    messages:
+      registerResources.message:
+        $ref: '#/components/messages/registerResourcesMessage'
+  ResourceUpdates:
+    address: '{priceZone}/{customerName}/v2/update/{resourceId}'
+    description: >
+      Partial modification of a registered resource. Fields present in the message
+      are applied; fields absent are left unchanged. `resourceId` and
+      `resourceType` are immutable, so equipment of a different class registers as
+      a new resource.
+    parameters:
+      priceZone:
+        $ref: '#/components/parameters/priceZone'
+      customerName:
+        $ref: '#/components/parameters/customerName'
+      resourceId:
+        $ref: '#/components/parameters/resourceId'
+    messages:
+      updateResource.message:
+        $ref: '#/components/messages/updateResourceMessage'
+  ResourceMeasurements:
+    address: '{priceZone}/{customerName}/v2/measurements/{resourceId}'
+    description: >
+      Telemetry for a single resource. Each message carries exactly one
+      `measurementType` and one `value`. The platform does not accept batched
+      payloads.
+    parameters:
+      priceZone:
+        $ref: '#/components/parameters/priceZone'
+      customerName:
+        $ref: '#/components/parameters/customerName'
+      resourceId:
+        $ref: '#/components/parameters/resourceId'
+    messages:
+      measurement.message:
+        $ref: '#/components/messages/measurementMessage'
+  ResourceEvents:
+    address: '{priceZone}/{customerName}/v2/events/{resourceId}'
+    description: >
+      Dispatch-relevant state transitions, alarms, and faults for a single
+      resource. A resource that becomes undispatchable publishes an `Unavailable`
+      event rather than falling silent.
+
+      Set this topic as the connection's Last Will and Testament, at QoS 1 and
+      without the retain flag, carrying a `Status` event with `resourceState`
+      `Unavailable`. Credentials are issued per resource and each resource holds its
+      own connection, so the will identifies exactly one resource. Set
+      `resourceTimestamp` to `null` in the will: it is composed at connect time and
+      cannot carry the time the link dropped. The platform stamps its own receipt
+      time on the transition.
+    parameters:
+      priceZone:
+        $ref: '#/components/parameters/priceZone'
+      customerName:
+        $ref: '#/components/parameters/customerName'
+      resourceId:
+        $ref: '#/components/parameters/resourceId'
+    messages:
+      event.message:
+        $ref: '#/components/messages/eventMessage'
+  ResourceActivations:
+    address: '{priceZone}/{customerName}/v2/activation/{resourceId}'
+    description: >
+      Dispatch commands for a single resource. Two commands exist: `Setpoint` moves
+      the resource to a signed power value, and `Release` returns it to its own
+      control logic. There is no bulk activation channel.
+    parameters:
+      priceZone:
+        $ref: '#/components/parameters/priceZone'
+      customerName:
+        $ref: '#/components/parameters/customerName'
+      resourceId:
+        $ref: '#/components/parameters/resourceId'
+    messages:
+      setpointActivation.message:
+        $ref: '#/components/messages/setpointActivationMessage'
+      releaseActivation.message:
+        $ref: '#/components/messages/releaseActivationMessage'
+  ResourceAcknowledgements:
+    address: '{priceZone}/{customerName}/v2/acknowledgement/{resourceId}'
+    description: >
+      The resource's answer to a single activation. Mandatory for every resource
+      type, including types whose response is also visible in the measurement
+      stream: an acknowledgement carries a reason for non-response, which a stream
+      of power values cannot express.
+    parameters:
+      priceZone:
+        $ref: '#/components/parameters/priceZone'
+      customerName:
+        $ref: '#/components/parameters/customerName'
+      resourceId:
+        $ref: '#/components/parameters/resourceId'
+    messages:
+      acknowledgement.message:
+        $ref: '#/components/messages/acknowledgementMessage'
+operations:
+  onResourceRegistration:
+    title: Register resources
+    summary: Register one or more resources for dispatch
+    action: send
+    channel:
+      $ref: '#/channels/ResourceRegistration'
+    bindings:
+      mqtt:
+        qos: 1
+        retain: false
+        bindingVersion: 0.2.0
+    messages:
+      - $ref: '#/channels/ResourceRegistration/messages/registerResources.message'
+  onResourceUpdate:
+    title: Update a resource
+    summary: Modify the declared properties of a registered resource
+    action: send
+    channel:
+      $ref: '#/channels/ResourceUpdates'
+    bindings:
+      mqtt:
+        qos: 1
+        retain: false
+        bindingVersion: 0.2.0
+    messages:
+      - $ref: '#/channels/ResourceUpdates/messages/updateResource.message'
+  onMeasurement:
+    title: Publish a measurement
+    summary: Publish one metric value for one resource
+    description: >
+      Published at QoS 0 and without the retain flag. A sample redelivered by a
+      broker retry is already outside its delivery bound and cannot be used for
+      control or settlement, and a retained value appears live to any new
+      subscriber.
+    action: send
+    channel:
+      $ref: '#/channels/ResourceMeasurements'
+    bindings:
+      mqtt:
+        qos: 0
+        retain: false
+        bindingVersion: 0.2.0
+    messages:
+      - $ref: '#/channels/ResourceMeasurements/messages/measurement.message'
+  onEvent:
+    title: Publish an event
+    summary: Report a state transition, alarm, or fault
+    action: send
+    channel:
+      $ref: '#/channels/ResourceEvents'
+    bindings:
+      mqtt:
+        qos: 1
+        retain: false
+        bindingVersion: 0.2.0
+    messages:
+      - $ref: '#/channels/ResourceEvents/messages/event.message'
+  onActivation:
+    title: Receive an activation
+    summary: Receive a setpoint or a release for one resource
+    description: >
+      Delivered at QoS 1, so a redelivery after a reconnection can carry a command
+      that is already stale. Discard an activation whose `serverTimestamp` is older
+      on receipt than the roundtrip bound for the resource's market, and any
+      activation superseded by one the resource has already applied. Answer every
+      activation on the acknowledgement channel.
+    action: receive
+    channel:
+      $ref: '#/channels/ResourceActivations'
+    bindings:
+      mqtt:
+        qos: 1
+        retain: false
+        bindingVersion: 0.2.0
+    reply:
+      channel:
+        $ref: '#/channels/ResourceAcknowledgements'
+      messages:
+        - $ref: '#/channels/ResourceAcknowledgements/messages/acknowledgement.message'
+    messages:
+      - $ref: '#/channels/ResourceActivations/messages/setpointActivation.message'
+      - $ref: '#/channels/ResourceActivations/messages/releaseActivation.message'
+  onAcknowledgement:
+    title: Acknowledge an activation
+    summary: Report acceptance or refusal of a single activation
+    action: send
+    channel:
+      $ref: '#/channels/ResourceAcknowledgements'
+    bindings:
+      mqtt:
+        qos: 1
+        retain: false
+        bindingVersion: 0.2.0
+    messages:
+      - $ref: '#/channels/ResourceAcknowledgements/messages/acknowledgement.message'
+components:
+  schemas:
+    messageId:
+      type: string
+      format: ulid
+      description: |
+        Unique identifier for the message. Generated per message as a ULID. The
+        platform uses it to discard redeliveries.
+    resourceId:
+      type: string
+      description: |
+        Identifier of the resource the message concerns. Supplied by the partner at
+        registration and stable for the life of the resource. Matches the
+        `resourceId` segment of the topic the message is published on.
+    resourceTimestamp:
+      description: |
+        Time at which the equipment sampled the value or observed the condition.
+        Expressed as an integer number of milliseconds since the Unix epoch. Always
+        present, and `null` when the equipment has no clock the partner trusts.
+      anyOf:
+        - type: integer
+        - type: 'null'
+    serverTimestamp:
+      type: integer
+      description: |
+        Time at which the message was composed for publication. Expressed as an
+        integer number of milliseconds since the Unix epoch. On resource-originated
+        messages this is the partner's own clock, not the platform's. On
+        platform-originated messages it is the platform's clock.
+    batchTimestamp:
+      type: integer
+      description: |
+        Time at which the batch was assembled. Expressed as an integer number of
+        milliseconds since the Unix epoch.
+    resourceType:
+      type: string
+      description: |
+        Class of the resource. Determines which metrics the resource publishes and
+        which `configuration` variant it declares. Immutable once registered.
+        Equipment of a different class registers as a new resource.
+      enum:
+        - evCharger
+        - heatPump
+        - bess
+        - chp
+        - p2x
+        - pv
+        - misc
+    subscriptionStatus:
+      type: string
+      description: |
+        Whether the resource is available to the platform for dispatch.
+        `Unsubscribed` retains the registration record and excludes the resource
+        from operations. It does not delete the resource.
+      enum:
+        - Subscribed
+        - Unsubscribed
+    units:
+      type: string
+      description: |
+        Unit of the accompanying value. `kW` for the power metrics, `kWh` for the
+        energy metrics, and `%` for state of charge.
+      enum:
+        - kW
+        - kWh
+        - '%'
+    measurementType:
+      type: string
+      description: >
+        The metric a measurement message carries. One `measurementType` and one
+        `value` per message.
+
+
+        Which metrics a resource must publish is fixed by its `resourceType`, and
+        the obligation is additive: an `evCharger`, `heatPump`, `chp`, `p2x`, `pv`,
+        and `misc` publish the first three; a `bess` all six.
+
+        - `measuredPower` — power the resource is drawing or delivering now, in
+        `kW`. Signed, following the generator convention where export is positive
+        and import is negative. Mandatory for every resource type. A setpoint is
+        only interpretable against a measured position, and available power is
+        headroom from that position.
+
+        - `availablePowerUp` — additional power the resource can still deliver
+        upward, in `kW`. An unsigned magnitude measured from the current operating
+        point, not a rating. Already net of every reservation and planned event
+        outside the platform's control, including any reserve the resource holds
+        back for itself. Also net of the site it stands on: where the metered
+        connection point, a site controller, or other equipment behind the same
+        meter caps what this resource may import or export, the value is the
+        headroom that remains under that cap. Floors at `0` when something outside
+        the platform's control has claimed the capability, and never exceeds what
+        the equipment can physically reach.
+
+        - `availablePowerDown` — the same quantity in the downward direction, in
+        `kW`, on the same terms.
+
+        - `stateOfCharge` — energy stored in the battery as a fraction of its usable
+        capacity, in `%`. Ranges from `0` to `100` inclusive. Required for `bess`.
+
+        - `availableEnergyUp` — energy the battery can still deliver upward, in
+        `kWh`. Unsigned. Required for `bess`.
+
+        - `availableEnergyDown` — energy the battery can still absorb, in `kWh`.
+        Unsigned. Required for `bess`.
+
+
+        `stateOfCharge`, `availableEnergyUp`, and `availableEnergyDown` are not
+        derivable from one another. Reservations outside the platform's control move
+        the usable floor and ceiling independently of the state of charge. Publish
+        all three as sampled values.
+
+
+        Publishing is periodic and change-driven at once. A sample is due at the
+        periodic bound even when the value has not moved, because the platform reads
+        a gap in the stream as a fault rather than as an unchanged value. A movement
+        past the change threshold obliges an immediate additional sample and does
+        not reset the interval. The bounds and thresholds are in the Data Standards
+        documentation.
+      enum:
+        - measuredPower
+        - availablePowerUp
+        - availablePowerDown
+        - stateOfCharge
+        - availableEnergyUp
+        - availableEnergyDown
+    eventKind:
+      type: string
+      description: |
+        Whether the event reports a normal state transition or a fault. `Status`
+        reports a transition of `resourceState`. `Error` reports a fault condition,
+        and carries `code` and `description`.
+      enum:
+        - Status
+        - Error
+    resourceState:
+      type: string
+      description: |
+        Dispatch-relevant condition of the resource. Drawn from a set small enough
+        to mean the same thing for every resource type, and deliberately not the
+        equipment's own operating vocabulary.
+
+        - `Available` — dispatchable, and running under its own control logic.
+        - `Unavailable` — not dispatchable. Mandatory on the transition, including
+        when the cause is a loss of connectivity, in which case the broker publishes
+        it from the connection's Last Will and Testament.
+        - `Activated` — holding a setpoint the platform commanded. Direction is
+        carried by the activation, not by the state.
+        - `Faulted` — not dispatchable because of an equipment fault.
+      enum:
+        - Available
+        - Unavailable
+        - Activated
+        - Faulted
+    severity:
+      type: string
+      description: |
+        Operational severity of the event.
+      enum:
+        - INFO
+        - LOW
+        - HIGH
+        - CRITICAL
+    chargingSessionState:
+      type: string
+      description: |
+        State of the charging session, as reported by OCPP. Optional, and meaningful
+        for `evCharger` resources only. It describes a session rather than a
+        readiness to be dispatched, so the platform reads `resourceState` for
+        dispatch decisions and this field for context.
+      enum:
+        - Charging
+        - Preparing
+        - SuspendedEV
+        - SuspendedEVSE
+        - Reserved
+    acceptance:
+      type: string
+      description: |
+        Outcome of a single activation at the resource.
+
+        - `Accepted` — the resource applied the command.
+        - `Rejected` — the resource refused the command.
+        - `Offline` — the resource is not reachable from the partner's system.
+        - `NotAvailable` — the resource is reachable but not dispatchable.
+        - `InvalidResourceId` — `resourceId` does not match a registered resource.
+        - `InvalidMessageFormat` — the payload could not be parsed.
+        - `InternalError` — the command failed for a reason on the partner's side.
+        - `Unauthorised` — the partner's system refused the command on
+        authorisation grounds.
+
+        Detail specific to a resource type belongs in `reason`.
+      enum:
+        - Accepted
+        - Rejected
+        - Offline
+        - NotAvailable
+        - InvalidResourceId
+        - InvalidMessageFormat
+        - InternalError
+        - Unauthorised
+    resourceCapability:
+      type: string
+      description: |
+        A declared feature tier. `DynamicBinning` is accepted but not used at
+        runtime. The setpoints a resource can actually reach come from
+        `controlGranularity`, not from this field.
+      enum:
+        - Basic
+        - Standard
+        - Enhanced
+        - Full
+        - DynamicBinning
+    capabilityList:
+      type: array
+      description: |
+        Feature tiers the resource declares. Defaults to `["Basic"]` when omitted.
+        Raising the tier takes an explicit update message.
+      minItems: 1
+      items:
+        $ref: '#/components/schemas/resourceCapability'
+    binningConfiguration:
+      type: object
+      description: |
+        Configuration for the `DynamicBinning` capability. Ignored when the
+        capability list does not contain `DynamicBinning`.
+      properties:
+        scaleStart:
+          type: integer
+          description: |
+            First value of the binning scale. A signed integer.
+        scaleEnd:
+          type: integer
+          description: |
+            Last value of the binning scale. A signed integer.
+        binSize:
+          type: integer
+          description: |
+            Width of one bin, in whole units of the scale.
+      required:
+        - scaleStart
+        - scaleEnd
+        - binSize
+    marketParty:
+      type: object
+      description: |
+        A market party the resource is contractually related to.
+      properties:
+        code:
+          type: string
+          description: |
+            Identifier of the party, as published in the eSett open data register.
+            The identifier of the party in the official ECP layer, not its trading
+            name.
+        encoding:
+          type: string
+          description: |
+            Coding scheme the `code` is expressed in, as published alongside the code
+            in the same register.
+      required:
+        - code
+    marketRelationships:
+      type: object
+      description: |
+        Market parties the resource is contractually related to. The platform uses
+        them to place the resource in a portfolio. Market enrolment itself is not
+        declared here: which markets a resource trades is commercial data the
+        platform owns.
+      properties:
+        balanceResponsibleParty:
+          description: |
+            Balance Responsible Party for the resource's connection point. Codes are
+            published at https://opendata.esett.com/brp.
+          $ref: '#/components/schemas/marketParty'
+        retailer:
+          description: |
+            Retailer supplying the resource's connection point. Codes are published at
+            https://opendata.esett.com/retailers.
+          $ref: '#/components/schemas/marketParty'
+      required:
+        - balanceResponsibleParty
+        - retailer
+    continuousControlGranularity:
+      type: object
+      description: |
+        Control granularity of a resource that accepts any setpoint inside a band.
+        The reachable setpoints are `0` together with every value between `minKw`
+        and `maxKw` inclusive.
+      properties:
+        mode:
+          type: string
+          description: |
+            Always `Continuous` on this variant.
+          enum:
+            - Continuous
+        minKw:
+          type: number
+          description: |
+            Lowest setpoint the resource can hold, in `kW`. Signed, following the
+            generator convention where export is positive and import is negative.
+        maxKw:
+          type: number
+          description: |
+            Highest setpoint the resource can hold, in `kW`. Signed, on the same
+            convention.
+      required:
+        - mode
+        - minKw
+        - maxKw
+    steppedControlGranularity:
+      type: object
+      description: |
+        Control granularity of a resource that can only hold a fixed set of
+        setpoints. The reachable setpoints are exactly the values listed, and no
+        others.
+      properties:
+        mode:
+          type: string
+          description: |
+            Always `Steps` on this variant.
+          enum:
+            - Steps
+        stepsKw:
+          type: array
+          description: |
+            Setpoints the resource can hold, in `kW`. Signed, following the generator
+            convention where export is positive and import is negative. Ascending, and
+            includes `0` when the resource can be held at zero power. Steps are not
+            required to be evenly spaced: compressor and backup heater stages differ
+            in size.
+          minItems: 2
+          items:
+            type: number
+      required:
+        - mode
+        - stepsKw
+    controlGranularity:
+      description: |
+        The setpoints the resource can actually reach. The platform applies the
+        nearest reachable value when a commanded setpoint falls between them, so a
+        commanded setpoint and the power that follows it can differ.
+      oneOf:
+        - $ref: '#/components/schemas/continuousControlGranularity'
+        - $ref: '#/components/schemas/steppedControlGranularity'
+    evChargerConfiguration:
+      type: object
+      description: |
+        Configuration declared by a resource of type `evCharger`.
+      properties:
+        currentType:
+          type: string
+          description: |
+            Whether the charge point delivers alternating or direct current. Control
+            granularity follows from it: an `AC` charge point is commanded in whole
+            amps and declares `Steps`, a `DC` charge point follows any power setpoint
+            inside its band and declares `Continuous`.
+          enum:
+            - AC
+            - DC
+      required:
+        - currentType
+    heatPumpConfiguration:
+      type: object
+      description: |
+        Configuration declared by a resource of type `heatPump`.
+      properties:
+        compressorRatedPowerKw:
+          type: number
+          description: |
+            Rated electrical input power of the compressor, in `kW`. Unsigned.
+        backupHeaterRatedPowerKw:
+          type: number
+          description: |
+            Rated electrical input power of the backup heater, in `kW`. Unsigned.
+            `0` when the resource has no backup heater.
+      required:
+        - compressorRatedPowerKw
+        - backupHeaterRatedPowerKw
+    bessConfiguration:
+      type: object
+      description: |
+        Configuration declared by a resource of type `bess`. These are the
+        dispatch-relevant properties of the battery. Identity and composition
+        properties such as manufacturer, cell technology, and rack counts are not
+        declared here.
+      properties:
+        powerRatedKw:
+          type: number
+          description: |
+            Rated power of the inverter, in `kW`. Unsigned, and applies in both
+            directions.
+        powerUsableKw:
+          type: number
+          description: |
+            Power the battery is permitted to use, in `kW`. Unsigned. Equal to or
+            below `powerRatedKw`.
+        storageRatedKwh:
+          type: number
+          description: |
+            Rated energy capacity of the battery, in `kWh`. Unsigned.
+        storageUsableKwh:
+          type: number
+          description: |
+            Energy capacity the battery is permitted to use, in `kWh`. Unsigned. Equal
+            to or below `storageRatedKwh`.
+        minSoc:
+          type: number
+          description: |
+            Lowest state of charge the battery is permitted to reach, in `%`. Ranges
+            from `0` to `100` inclusive.
+        maxSoc:
+          type: number
+          description: |
+            Highest state of charge the battery is permitted to reach, in `%`. Ranges
+            from `0` to `100` inclusive, and above `minSoc`.
+        chargeEfficiency:
+          type: number
+          description: |
+            Charging efficiency as a fraction, in one direction only. Ranges from `0`
+            to `1` inclusive.
+        dischargeEfficiency:
+          type: number
+          description: |
+            Discharging efficiency as a fraction, in one direction only. Ranges from
+            `0` to `1` inclusive.
+      required:
+        - powerRatedKw
+        - powerUsableKw
+        - storageRatedKwh
+        - storageUsableKwh
+        - minSoc
+        - maxSoc
+        - chargeEfficiency
+        - dischargeEfficiency
+    emptyConfiguration:
+      type: object
+      description: |
+        Configuration declared by a resource of type `chp`, `p2x`, or `misc`. No
+        equipment properties are defined for these types, so the block is an empty
+        object. The dispatch envelope comes from `maxImportKw`, `maxExportKw`, and
+        `controlGranularity` alone.
+      additionalProperties: false
+    moduleGroup:
+      type: object
+      description: |
+        One set of photovoltaic modules sharing a single orientation and tilt.
+      properties:
+        capacityKwp:
+          type: number
+          description: |
+            Peak DC capacity of the group at standard test conditions, in `kWp`.
+            Unsigned. Not the inverter's AC rating, which is `maxExportKw`.
+        azimuth:
+          type: number
+          description: |
+            Direction the modules face, in degrees from true south, positive toward
+            east. Ranges from `-180` to `180` inclusive. South is `0`, east is `90`,
+            west is `-90`, and north is `180` or `-180`. A design tool reporting
+            azimuth from north, or from south with west positive, requires conversion
+            before publishing.
+        inclination:
+          type: number
+          description: |
+            Tilt of the modules from horizontal, in degrees. Ranges from `0` to `90`
+            inclusive, where `0` is horizontal and `90` is vertical.
+      required:
+        - capacityKwp
+        - azimuth
+        - inclination
+    pvConfiguration:
+      type: object
+      description: |
+        Configuration declared by a resource of type `pv`. These are the properties
+        production forecasting reads. Identity properties such as manufacturer and
+        commissioning year are not declared here, and neither is an inverter rating:
+        the AC envelope is `maxExportKw`.
+      properties:
+        latitude:
+          type: number
+          description: |
+            Latitude of the array in decimal degrees on WGS 84. Ranges from `-90` to
+            `90` inclusive.
+        longitude:
+          type: number
+          description: |
+            Longitude of the array in decimal degrees on WGS 84. Ranges from `-180`
+            to `180` inclusive.
+        moduleGroups:
+          type: array
+          description: |
+            The array's module groups, one per orientation. A roof with two faces
+            declares two groups. Their combined `capacityKwp` can exceed
+            `maxExportKw`, and the surplus is clipped.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/moduleGroup'
+        systemLoss:
+          type: number
+          description: |
+            Fraction of DC production lost before the meter, covering wiring, soiling,
+            and conversion. Ranges from `0` to `1`. Defaults to `0.14` when omitted.
+      required:
+        - latitude
+        - longitude
+        - moduleGroups
+    resourceConfiguration:
+      description: |
+        Type-specific properties of the resource. The variant follows
+        `resourceType`, and is an empty object for the types that declare no
+        equipment properties.
+      oneOf:
+        - $ref: '#/components/schemas/evChargerConfiguration'
+        - $ref: '#/components/schemas/heatPumpConfiguration'
+        - $ref: '#/components/schemas/bessConfiguration'
+        - $ref: '#/components/schemas/pvConfiguration'
+        - $ref: '#/components/schemas/emptyConfiguration'
+    resourceRegistration:
+      type: object
+      description: |
+        One resource in a registration batch. Declares what the resource is and the
+        envelope it can be dispatched within.
+      properties:
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        resourceType:
+          $ref: '#/components/schemas/resourceType'
+        subscriptionStatus:
+          $ref: '#/components/schemas/subscriptionStatus'
+        maxImportKw:
+          type: number
+          description: |
+            Greatest power the resource can draw from the grid, in `kW`. An unsigned
+            magnitude. It bounds the import end of the setpoint range, so a commanded
+            setpoint never falls below `-maxImportKw`.
+        maxExportKw:
+          type: number
+          description: |
+            Greatest power the resource can deliver to the grid, in `kW`. An unsigned
+            magnitude. It bounds the export end of the setpoint range, so a commanded
+            setpoint never exceeds `maxExportKw`. `0` for a resource that can only
+            consume.
+        controlGranularity:
+          $ref: '#/components/schemas/controlGranularity'
+        marketRelationships:
+          $ref: '#/components/schemas/marketRelationships'
+        configuration:
+          $ref: '#/components/schemas/resourceConfiguration'
+        capability:
+          $ref: '#/components/schemas/capabilityList'
+        capabilityConfiguration:
+          $ref: '#/components/schemas/binningConfiguration'
+      required:
+        - resourceId
+        - resourceType
+        - subscriptionStatus
+        - maxImportKw
+        - maxExportKw
+        - controlGranularity
+        - marketRelationships
+        - configuration
+    registerResourcesPayload:
+      type: object
+      description: |
+        A registration batch. The `resources` array carries one entry per resource,
+        so a single resource and a fleet register through the same message.
+      properties:
+        messageId:
+          $ref: '#/components/schemas/messageId'
+        timestamp:
+          $ref: '#/components/schemas/batchTimestamp'
+        resources:
+          type: array
+          description: |
+            Resources to register.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/resourceRegistration'
+      required:
+        - messageId
+        - timestamp
+        - resources
+    updateResourcePayload:
+      type: object
+      description: |
+        A partial modification of one registered resource. Every property other
+        than `messageId`, `timestamp`, and `resourceId` is optional, and the
+        platform applies only those present. `resourceType` cannot be changed.
+      properties:
+        messageId:
+          $ref: '#/components/schemas/messageId'
+        timestamp:
+          $ref: '#/components/schemas/batchTimestamp'
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        subscriptionStatus:
+          $ref: '#/components/schemas/subscriptionStatus'
+        maxImportKw:
+          type: number
+          description: |
+            New value for the greatest power the resource can draw from the grid, in
+            `kW`. An unsigned magnitude.
+        maxExportKw:
+          type: number
+          description: |
+            New value for the greatest power the resource can deliver to the grid, in
+            `kW`. An unsigned magnitude.
+        controlGranularity:
+          $ref: '#/components/schemas/controlGranularity'
+        marketRelationships:
+          $ref: '#/components/schemas/marketRelationships'
+        configuration:
+          $ref: '#/components/schemas/resourceConfiguration'
+        capability:
+          $ref: '#/components/schemas/capabilityList'
+        capabilityConfiguration:
+          $ref: '#/components/schemas/binningConfiguration'
+      required:
+        - messageId
+        - timestamp
+        - resourceId
+    measurementPayload:
+      type: object
+      description: |
+        One metric value for one resource.
+      properties:
+        messageId:
+          $ref: '#/components/schemas/messageId'
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        measurementType:
+          $ref: '#/components/schemas/measurementType'
+        value:
+          type: number
+          description: |
+            The measured value. Every metric on this channel is numeric. Its unit,
+            sign convention, and range follow from `measurementType`.
+        unit:
+          $ref: '#/components/schemas/units'
+        resourceTimestamp:
+          $ref: '#/components/schemas/resourceTimestamp'
+        serverTimestamp:
+          $ref: '#/components/schemas/serverTimestamp'
+      required:
+        - messageId
+        - resourceId
+        - measurementType
+        - value
+        - unit
+        - resourceTimestamp
+        - serverTimestamp
+    eventPayload:
+      type: object
+      description: |
+        A state transition, alarm, or fault on one resource.
+      properties:
+        messageId:
+          $ref: '#/components/schemas/messageId'
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        eventKind:
+          $ref: '#/components/schemas/eventKind'
+        resourceState:
+          $ref: '#/components/schemas/resourceState'
+        severity:
+          $ref: '#/components/schemas/severity'
+        code:
+          type: string
+          description: |
+            Partner-defined identifier for the condition. Free text. The platform
+            stores it and does not branch on it.
+        description:
+          type: string
+          description: |
+            Human-readable account of the condition. Free text.
+        sessionState:
+          $ref: '#/components/schemas/chargingSessionState'
+        resourceTimestamp:
+          $ref: '#/components/schemas/resourceTimestamp'
+        serverTimestamp:
+          $ref: '#/components/schemas/serverTimestamp'
+      required:
+        - messageId
+        - resourceId
+        - eventKind
+        - resourceState
+        - severity
+        - resourceTimestamp
+        - serverTimestamp
+    setpointActivation:
+      type: object
+      description: |
+        Instruction to move the resource to a signed power setpoint now.
+      properties:
+        messageId:
+          $ref: '#/components/schemas/messageId'
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        activation:
+          type: string
+          description: |
+            Always `Setpoint` on this variant.
+          enum:
+            - Setpoint
+        setpoint:
+          type: number
+          description: |
+            Power the resource is to move to. Follows the generator sign convention,
+            where export is positive and import is negative. Expressed in the unit
+            given by `unit`. Falls within `[-maxImportKw, maxExportKw]` as declared at
+            registration.
+
+            The value is a target, not a ceiling. A resource whose
+            `controlGranularity` cannot reach it applies the nearest value it can, and
+            `measuredPower` reports what it achieved.
+
+            A setpoint of `0` is an instruction to hold zero power. It does not end
+            the activation: only a `Release` does that.
+        unit:
+          type: string
+          description: |
+            Unit of `setpoint`. Always `kW`.
+          enum:
+            - kW
+        endsAt:
+          type: integer
+          description: |
+            Time at which the resource stops being obliged to hold the setpoint.
+            Expressed as an integer number of milliseconds since the Unix epoch.
+            Always present on this variant. The platform normally issues a `Release`
+            before it elapses; a resource whose link to the platform has dropped
+            reverts to its own control logic at this time.
+        serverTimestamp:
+          $ref: '#/components/schemas/serverTimestamp'
+      required:
+        - messageId
+        - resourceId
+        - activation
+        - setpoint
+        - unit
+        - endsAt
+        - serverTimestamp
+    releaseActivation:
+      type: object
+      description: |
+        Instruction to end the current activation and return the resource to its
+        own control logic. Carries no `setpoint` and no `endsAt`. A release is not a
+        setpoint of `0`: zero power is itself a valid instruction to a resource that
+        can only consume.
+      properties:
+        messageId:
+          $ref: '#/components/schemas/messageId'
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        activation:
+          type: string
+          description: |
+            Always `Release` on this variant.
+          enum:
+            - Release
+        serverTimestamp:
+          $ref: '#/components/schemas/serverTimestamp'
+      required:
+        - messageId
+        - resourceId
+        - activation
+        - serverTimestamp
+    acknowledgementPayload:
+      type: object
+      description: |
+        The resource's answer to one activation.
+      properties:
+        messageId:
+          $ref: '#/components/schemas/messageId'
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+        activationId:
+          type: string
+          format: ulid
+          description: |
+            Identifier of the activation being answered. Matches that activation's
+            `messageId`.
+        acceptance:
+          $ref: '#/components/schemas/acceptance'
+        reason:
+          type: string
+          description: |
+            Detail behind the `acceptance` value. Free text, and the place for
+            conditions specific to a resource type, such as an EV charger with no
+            vehicle connected. The platform stores it and does not branch on it.
+        executedAt:
+          type: integer
+          description: |
+            Time at which the resource applied the command. Expressed as an integer
+            number of milliseconds since the Unix epoch. Set to the time of the
+            decision when `acceptance` is anything other than `Accepted`.
+      required:
+        - messageId
+        - resourceId
+        - activationId
+        - acceptance
+        - executedAt
+  messages:
+    registerResourcesMessage:
+      name: Register Resources
+      title: Registration Message
+      description: >-
+        Registers one or more resources in the price zone and customer namespace of
+        the topic. Registration is idempotent on first publish and is not a partial
+        update.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/registerResourcesPayload'
+      examples:
+        - name: registerEvCharger
+          summary: A single three-phase AC charge point, commanded in whole amps
+          payload:
+            messageId: 01M1GST35A5N67FK9NNRF1JRJZ
+            timestamp: 1788344077482
+            resources:
+              - resourceId: evse-site-a-01
+                resourceType: evCharger
+                subscriptionStatus: Subscribed
+                maxImportKw: 11
+                maxExportKw: 0
+                controlGranularity:
+                  mode: Steps
+                  stepsKw: [-11, -10.4, -9.7, -9, -8.3, -7.6, -6.9, -6.2, -5.5, -4.8, -4.1, 0]
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration:
+                  currentType: AC
+        - name: registerHeatPump
+          summary: A heat pump with unequal compressor and heater stages
+          payload:
+            messageId: 01M1GST35A3BWM0NNWAHTP34QP
+            timestamp: 1788344077482
+            resources:
+              - resourceId: hp-site-b-01
+                resourceType: heatPump
+                subscriptionStatus: Subscribed
+                maxImportKw: 9
+                maxExportKw: 0
+                controlGranularity:
+                  mode: Steps
+                  stepsKw: [-9, -6, -3, -1.5, 0]
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration:
+                  compressorRatedPowerKw: 6
+                  backupHeaterRatedPowerKw: 3
+        - name: registerBess
+          summary: A residential battery
+          payload:
+            messageId: 01M1GST35A7D7YSZPJ8W16015M
+            timestamp: 1788344077482
+            resources:
+              - resourceId: bess-site-c-01
+                resourceType: bess
+                subscriptionStatus: Subscribed
+                maxImportKw: 5
+                maxExportKw: 5
+                controlGranularity:
+                  mode: Continuous
+                  minKw: -5
+                  maxKw: 5
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration:
+                  powerRatedKw: 5
+                  powerUsableKw: 5
+                  storageRatedKwh: 13.5
+                  storageUsableKwh: 12.8
+                  minSoc: 10
+                  maxSoc: 100
+                  chargeEfficiency: 0.96
+                  dischargeEfficiency: 0.96
+        - name: registerChp
+          summary: A combined heat and power unit, which exports rather than consumes
+          payload:
+            messageId: 01M1GST35AB4TCZR6WQY4M5EKF
+            timestamp: 1788344077482
+            resources:
+              - resourceId: chp-site-d-01
+                resourceType: chp
+                subscriptionStatus: Subscribed
+                maxImportKw: 0
+                maxExportKw: 9
+                controlGranularity:
+                  mode: Steps
+                  stepsKw:
+                    - 0
+                    - 4.5
+                    - 9
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration: {}
+        - name: registerP2x
+          summary: A power-to-X plant, which consumes across a continuous band
+          payload:
+            messageId: 01M1GST35AC8QW2XJ5N7VHYD3T
+            timestamp: 1788344077482
+            resources:
+              - resourceId: p2x-site-e-01
+                resourceType: p2x
+                subscriptionStatus: Subscribed
+                maxImportKw: 50
+                maxExportKw: 0
+                controlGranularity:
+                  mode: Continuous
+                  minKw: -50
+                  maxKw: 0
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration: {}
+        - name: registerPv
+          summary: A rooftop photovoltaic array, which exports and can be curtailed
+          payload:
+            messageId: 01M1GST35AE6YH4NCX2VJ7RD5P
+            timestamp: 1788344077482
+            resources:
+              - resourceId: pv-site-g-01
+                resourceType: pv
+                subscriptionStatus: Subscribed
+                maxImportKw: 0
+                maxExportKw: 6
+                controlGranularity:
+                  mode: Continuous
+                  minKw: 0
+                  maxKw: 6
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration:
+                  latitude: 55.68
+                  longitude: 12.57
+                  systemLoss: 0.11
+                  moduleGroups:
+                    - capacityKwp: 5
+                      azimuth: 0
+                      inclination: 35
+                    - capacityKwp: 2.4
+                      azimuth: -90
+                      inclination: 35
+        - name: registerMisc
+          summary: Dispatchable equipment with no resource type of its own
+          payload:
+            messageId: 01M1GST35AD1ZK9PFR3T8XQW7B
+            timestamp: 1788344077482
+            resources:
+              - resourceId: misc-site-f-01
+                resourceType: misc
+                subscriptionStatus: Subscribed
+                maxImportKw: 12
+                maxExportKw: 0
+                controlGranularity:
+                  mode: Continuous
+                  minKw: -12
+                  maxKw: 0
+                marketRelationships:
+                  balanceResponsibleParty:
+                    code: '5790001234567'
+                    encoding: GS1
+                  retailer:
+                    code: '5790009876543'
+                    encoding: GS1
+                configuration: {}
+    updateResourceMessage:
+      name: Update Resource
+      title: Resource Update Message
+      description: >-
+        Modifies the declared properties of one registered resource. Properties
+        absent from the message are left unchanged.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/updateResourcePayload'
+      examples:
+        - name: unsubscribe
+          summary: Withdrawing a resource from dispatch without deleting it
+          payload:
+            messageId: 01M1GST35ATGXHDA0GTTASWP5B
+            timestamp: 1788344077482
+            resourceId: evse-site-a-01
+            subscriptionStatus: Unsubscribed
+        - name: derate
+          summary: Lowering the import envelope after an electrical inspection
+          payload:
+            messageId: 01M1GST35ATP0A4SXDJ91M6EXD
+            timestamp: 1788344077482
+            resourceId: evse-site-a-01
+            maxImportKw: 7.4
+            controlGranularity:
+              mode: Continuous
+              minKw: -7.4
+              maxKw: -1.4
+    measurementMessage:
+      name: Measurement
+      title: Measurement Message
+      description: One metric value for one resource.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/measurementPayload'
+      examples:
+        - name: measuredPower
+          summary: A charge point drawing 7.2 kW, negative under the generator convention
+          payload:
+            messageId: 01M1GST35APXKNTBYRZY57BX69
+            resourceId: evse-site-a-01
+            measurementType: measuredPower
+            value: -7.2
+            unit: kW
+            resourceTimestamp: 1788344077482
+            serverTimestamp: 1788344077549
+        - name: availablePowerUp
+          summary: Headroom to reduce consumption from the current operating point, as an unsigned magnitude
+          payload:
+            messageId: 01M1GST35AQK4X8ZC1PBW0M2VT
+            resourceId: evse-site-a-01
+            measurementType: availablePowerUp
+            value: 7.2
+            unit: kW
+            resourceTimestamp: 1788344077482
+            serverTimestamp: 1788344077549
+        - name: stateOfCharge
+          summary: A battery at 94%, with little headroom left to absorb
+          payload:
+            messageId: 01M1GST35AR9YQFCGH7T5ZKM3D
+            resourceId: bess-site-c-01
+            measurementType: stateOfCharge
+            value: 94
+            unit: '%'
+            resourceTimestamp: 1788344077482
+            serverTimestamp: 1788344077549
+        - name: noResourceClock
+          summary: Equipment without a trusted clock publishes a null resourceTimestamp
+          payload:
+            messageId: 01M1GST35AS2VN6P0XJDHE4YQW
+            resourceId: hp-site-b-01
+            measurementType: measuredPower
+            value: -3
+            unit: kW
+            resourceTimestamp: null
+            serverTimestamp: 1788344077549
+    eventMessage:
+      name: Event
+      title: Event Message
+      description: A state transition, alarm, or fault on one resource.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/eventPayload'
+      examples:
+        - name: available
+          summary: A resource becoming dispatchable
+          payload:
+            messageId: 01M1GST35AT7C4BKW9XZQ2NF8H
+            resourceId: evse-site-a-01
+            eventKind: Status
+            resourceState: Available
+            severity: INFO
+            sessionState: Charging
+            resourceTimestamp: 1788344077482
+            serverTimestamp: 1788344077549
+        - name: faulted
+          summary: An equipment fault, with a partner-defined code
+          payload:
+            messageId: 01M1GST35AVQ0JR3M8YD1TWZK6
+            resourceId: hp-site-b-01
+            eventKind: Error
+            resourceState: Faulted
+            severity: HIGH
+            code: HP-E042
+            description: Compressor high-pressure cut-out
+            resourceTimestamp: 1788344077482
+            serverTimestamp: 1788344077549
+        - name: lastWill
+          summary: The Last Will and Testament payload the broker publishes when the connection drops
+          payload:
+            messageId: 01M1GST35AW5HB2P7NKXFD9RTC
+            resourceId: evse-site-a-01
+            eventKind: Status
+            resourceState: Unavailable
+            severity: HIGH
+            code: ConnectionLost
+            description: Connection to the platform closed without a disconnect
+            resourceTimestamp: null
+            serverTimestamp: 1788344012004
+    setpointActivationMessage:
+      name: Setpoint Activation
+      title: Setpoint Activation Message
+      description: >-
+        Instruction to move the resource to a signed power setpoint now. Sent when
+        `activation` is `Setpoint`.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/setpointActivation'
+      examples:
+        - name: importSetpoint
+          summary: Holding a charge point at 3.7 kW of consumption
+          payload:
+            messageId: 01M1GST35AX8FQ4T0ZJ1BVHN7M
+            resourceId: evse-site-a-01
+            activation: Setpoint
+            setpoint: -3.7
+            unit: kW
+            endsAt: 1788347677482
+            serverTimestamp: 1788344077482
+        - name: zeroSetpoint
+          summary: Holding a charge point at zero power, which is not a release
+          payload:
+            messageId: 01M1GST35AYNW6RD3M0K8SPZQF
+            resourceId: evse-site-a-01
+            activation: Setpoint
+            setpoint: 0
+            unit: kW
+            endsAt: 1788347677482
+            serverTimestamp: 1788344077482
+        - name: exportSetpoint
+          summary: Discharging a battery at 4.2 kW
+          payload:
+            messageId: 01M1GST35AZ3P9KVXTB5D2WGHR
+            resourceId: bess-site-c-01
+            activation: Setpoint
+            setpoint: 4.2
+            unit: kW
+            endsAt: 1788347677482
+            serverTimestamp: 1788344077482
+    releaseActivationMessage:
+      name: Release Activation
+      title: Release Activation Message
+      description: >-
+        Instruction to end the current activation and return the resource to its
+        own control logic. Sent when `activation` is `Release`. Carries no
+        `setpoint` and no `endsAt`.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/releaseActivation'
+      examples:
+        - name: release
+          summary: Returning the resource to its own control logic
+          payload:
+            messageId: 01M1GST35B0KTX7ZJ4NWQ8MFD5
+            resourceId: evse-site-a-01
+            activation: Release
+            serverTimestamp: 1788344677482
+    acknowledgementMessage:
+      name: Acknowledgement
+      title: Acknowledgement Message
+      description: The resource's answer to one activation.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/acknowledgementPayload'
+      examples:
+        - name: accepted
+          summary: The setpoint was applied
+          payload:
+            messageId: 01M1GST35B1WD3QZK7XPM0NTVJ
+            resourceId: evse-site-a-01
+            activationId: 01M1GST35AX8FQ4T0ZJ1BVHN7M
+            acceptance: Accepted
+            executedAt: 1788344077731
+        - name: notAvailable
+          summary: Reachable but not dispatchable, with the type-specific cause in reason
+          payload:
+            messageId: 01M1GST35B2XJ8FDR5TZQ0KWNH
+            resourceId: evse-site-a-01
+            activationId: 01M1GST35AX8FQ4T0ZJ1BVHN7M
+            acceptance: NotAvailable
+            reason: No vehicle connected
+            executedAt: 1788344077698
+  parameters:
+    priceZone:
+      description: |
+        Price zone the resource operates in.
+      enum:
+        - DK1
+        - DK2
+    customerName:
+      description: |
+        Customer namespace assigned during onboarding. Isolates one partner's
+        resources from another's, and forms part of access control.
+    resourceId:
+      description: |
+        Identifier of the resource the messages on this topic concern. The same
+        value the resource declared at registration.
+  securitySchemes:
+    user-password:
+      type: userPassword
+      description: >
+        Username and password credentials, issued per resource at registration.
+
+        Each resource authenticates with its own credentials and holds its own
+        connection.
+
+        Connection attempts with invalid credentials are logged.

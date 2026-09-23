@@ -1,0 +1,493 @@
+/* Hybrid Greentech design system, applied to the docs surface.
+   Values come from the HGT design system (last changed 18 September 2026) —
+   colour, type, spacing, radius, shadow and motion tokens only, no new values.
+
+   Token names are kept in the variable names so a value can be traced back to
+   the system. `docs.json` carries what Mintlify configures natively (brand
+   colours, DM Sans, Lucide icons, ink code blocks); everything that
+   needs a selector lives here.
+
+   Dark theme is a token override on `html.dark` — no component is forked. */
+
+/* Both families come from Google Fonts in one request. DM Sans replaces the
+   licensed PP Neue Montreal as the sans; Regular 400, Semibold 600 and Italic
+   400 are the only cuts used — never synthesise a light or a black. docs.json
+   registers the family so Mintlify's own variables point at it, but Mintlify
+   emits a single @font-face per family, so the 600 and italic cuts are loaded
+   here.
+
+   IBM Plex Mono stands in for an unsupplied house mono; it sets every number,
+   price, timestamp, ID and unit, always with tabular figures. */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap");
+
+:root {
+  /* Surfaces */
+  --hgt-surface-page: #fafaf7;
+  --hgt-surface-card: #ffffff;
+  --hgt-surface-sunken: #f2f2ee;
+  --hgt-surface-inverse: #0c1f25;
+  --hgt-surface-accent-soft: #dcf0f2;
+  --hgt-surface-warn-soft: #fceae0;
+
+  /* Text */
+  --hgt-text-strong: #0c1f25;
+  --hgt-text-body: #143440;
+  --hgt-text-muted: #55666d;
+  --hgt-text-on-dark: #f2f2ee;
+  --hgt-text-accent: #0f8189;
+
+  /* State — directional, never decorative: teal charges, orange discharges */
+  --hgt-charge: #1195a1;
+  --hgt-discharge: #dc480a;
+  --hgt-positive: #0f8189;
+  --hgt-negative: #bd2125;
+  --hgt-warning: #eeaa21;
+  --hgt-focus-ring: #1195a1;
+
+  /* Borders */
+  --hgt-border-hairline: rgba(12, 31, 37, 0.1);
+  --hgt-border-default: rgba(12, 31, 37, 0.16);
+  --hgt-border-strong: rgba(12, 31, 37, 0.32);
+
+  /* Ink ramp, for hover steps on solid ink and the code surface */
+  --hgt-ink-900: #0c1f25;
+  --hgt-ink-800: #0f272e;
+  --hgt-ink-700: #143440;
+  --hgt-code-surface: #0c1f25;
+  --hgt-code-surface-rgb: 12, 31, 37;
+
+  /* Type */
+  --hgt-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --hgt-fs-h1: 40px;
+  --hgt-fs-h2: 30px;
+  --hgt-fs-h3: 23px;
+  --hgt-fs-h4: 19px;
+  --hgt-fs-body: 16px;
+  --hgt-fs-body-sm: 14px;
+  --hgt-fs-caption: 13px;
+  --hgt-fs-micro: 11px;
+  --hgt-lh-heading: 1.1;
+  --hgt-lh-snug: 1.35;
+  --hgt-lh-body: 1.55;
+  --hgt-tracking-heading: -0.02em;
+  --hgt-tracking-body: -0.005em;
+  --hgt-tracking-label: 0.1em;
+  --hgt-tracking-mono: 0.02em;
+
+  /* Radius */
+  --hgt-radius-xs: 3px;
+  --hgt-radius-control: 6px;
+  --hgt-radius-card: 10px;
+  --hgt-radius-surface: 16px;
+  --hgt-radius-pill: 999px;
+
+  /* Shadow */
+  --hgt-shadow-card: 0 1px 2px rgba(12, 31, 37, 0.05), 0 8px 24px -12px rgba(12, 31, 37, 0.14);
+  --hgt-shadow-raised: 0 2px 4px rgba(12, 31, 37, 0.06), 0 18px 40px -16px rgba(12, 31, 37, 0.2);
+
+  /* Motion — one curve; the generated tokens.css emits 0ms, so the intended
+     durations are restored here and dropped again under reduced motion. */
+  --hgt-ease-standard: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --hgt-dur-instant: 80ms;
+  --hgt-dur-fast: 140ms;
+  --hgt-dur-base: 220ms;
+
+  /* Brand gradient, for hairlines and fills under ~200px only */
+  --hgt-gradient-spectrum: linear-gradient(
+    90deg,
+    #dc480a 0%,
+    #eeaa21 35%,
+    #e2e2d8 55%,
+    #7fcad1 78%,
+    #1195a1 100%
+  );
+}
+
+html.dark {
+  --hgt-surface-page: #0c1f25;
+  --hgt-surface-card: #0f272e;
+  --hgt-surface-sunken: #0a1a1f;
+  --hgt-surface-inverse: #fafaf7;
+  --hgt-surface-accent-soft: rgba(17, 149, 161, 0.14);
+  --hgt-surface-warn-soft: rgba(220, 72, 10, 0.14);
+
+  --hgt-text-strong: #fafaf7;
+  --hgt-text-body: #e2e2d8;
+  --hgt-text-muted: #a6adb0;
+  --hgt-text-accent: #39a8b3;
+
+  --hgt-border-hairline: rgba(226, 226, 216, 0.1);
+  --hgt-border-default: rgba(226, 226, 216, 0.16);
+  --hgt-border-strong: rgba(226, 226, 216, 0.32);
+
+  --hgt-code-surface: #0f272e;
+  --hgt-code-surface-rgb: 15, 39, 46;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --hgt-dur-instant: 0ms;
+    --hgt-dur-fast: 0ms;
+    --hgt-dur-base: 0ms;
+  }
+}
+
+/* --- Type ------------------------------------------------------------------ */
+
+body {
+  color: var(--hgt-text-body);
+  letter-spacing: var(--hgt-tracking-body);
+}
+
+#content-area {
+  font-size: var(--hgt-fs-body);
+  line-height: var(--hgt-lh-body);
+}
+
+/* Prose headings only — `.not-prose` headings belong to components (card
+   titles, API sections) and keep the size their component sets. */
+#page-title,
+#content-area h1:not(.not-prose),
+#content-area h2:not(.not-prose),
+#content-area h3:not(.not-prose),
+#content-area h4:not(.not-prose) {
+  color: var(--hgt-text-strong);
+  font-weight: 600;
+  letter-spacing: var(--hgt-tracking-heading);
+}
+
+#page-title,
+#content-area h1:not(.not-prose) {
+  font-size: var(--hgt-fs-h1);
+  line-height: var(--hgt-lh-heading);
+}
+
+#content-area h2:not(.not-prose) {
+  font-size: var(--hgt-fs-h2);
+  line-height: var(--hgt-lh-heading);
+}
+
+#content-area h3:not(.not-prose) {
+  font-size: var(--hgt-fs-h3);
+  line-height: var(--hgt-lh-snug);
+}
+
+#content-area h4:not(.not-prose) {
+  font-size: var(--hgt-fs-h4);
+  line-height: var(--hgt-lh-snug);
+}
+
+/* The micro label: 11px, semibold, 0.10em tracking, uppercase, muted. */
+eyebrow,
+.eyebrow,
+sidebar-group-header,
+#table-of-contents .toc-header,
+th {
+  font-size: var(--hgt-fs-micro);
+  font-weight: 600;
+  letter-spacing: var(--hgt-tracking-label);
+  text-transform: uppercase;
+  color: var(--hgt-text-muted);
+}
+
+/* Every number, price, timestamp, ID and unit is mono with tabular figures. */
+code,
+kbd,
+pre,
+code-block,
+#content-area .font-mono,
+method-pill,
+method-nav-pill {
+  font-family: var(--hgt-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--hgt-tracking-mono);
+}
+
+#content-area :not(pre) > code {
+  font-size: var(--hgt-fs-body-sm);
+  border-radius: var(--hgt-radius-xs);
+}
+
+/* --- Links ---------------------------------------------------------------- */
+
+/* text-accent is 4.44:1 on the light page ground, so prose links carry an
+   underline as well as the hue. */
+#content-area a:not(.not-prose):not([data-card]) {
+  color: var(--hgt-text-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color var(--hgt-dur-fast) var(--hgt-ease-standard);
+}
+
+/* --- Chrome --------------------------------------------------------------- */
+
+/* Keep the supplied lockup well above its 20px minimum. */
+img.nav-logo {
+  height: 1.5rem !important;
+  width: auto !important;
+}
+
+/* The brand gradient as a hairline — artwork sizes use the JPEGs instead.
+   It sits on the top edge of the navbar: the bottom edge belongs to the
+   selected tab's 2px ink underline, and two rules on one line collide. */
+#navbar {
+  border-bottom: 1px solid var(--hgt-border-hairline);
+}
+
+#navbar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--hgt-gradient-spectrum);
+}
+
+/* Selected tab: a 2px ink underline. */
+.nav-tabs-item[data-active] {
+  box-shadow: inset 0 -2px 0 0 var(--hgt-text-strong);
+}
+
+/* Selected sidebar link: teal text against a sunken wash. */
+#sidebar-content li[data-active] > a,
+#sidebar-content li[data-active] > div {
+  color: var(--hgt-text-accent);
+  background-color: var(--hgt-surface-sunken);
+  border-radius: var(--hgt-radius-control);
+}
+
+#sidebar-content a:hover {
+  background-color: var(--hgt-surface-sunken);
+  border-radius: var(--hgt-radius-control);
+}
+
+toc-item[data-active] {
+  color: var(--hgt-text-accent);
+}
+
+/* The primary call to action is ink, not teal; teal is reserved for accents
+   and the charge direction. */
+#topbar-cta-button {
+  background-color: var(--hgt-ink-900);
+  color: #ffffff;
+  border-radius: var(--hgt-radius-control);
+  transition: background-color var(--hgt-dur-fast) var(--hgt-ease-standard);
+}
+
+#topbar-cta-button:hover {
+  background-color: var(--hgt-ink-700);
+}
+
+#topbar-cta-button:active {
+  transform: translateY(1px);
+}
+
+/* --- Focus ---------------------------------------------------------------- */
+
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--hgt-surface-page), 0 0 0 4px var(--hgt-focus-ring);
+  border-radius: var(--hgt-radius-control);
+}
+
+/* --- Cards ---------------------------------------------------------------- */
+
+/* Mintlify renders these components as `div.card` / `div.callout`, so the
+   documented element selectors are matched in their class form too. */
+card,
+tile,
+.card,
+.tile {
+  background-color: var(--hgt-surface-card);
+  border: 1px solid var(--hgt-border-hairline);
+  border-radius: var(--hgt-radius-card);
+  box-shadow: var(--hgt-shadow-card);
+  transition: box-shadow var(--hgt-dur-base) var(--hgt-ease-standard),
+    transform var(--hgt-dur-base) var(--hgt-ease-standard);
+}
+
+/* gutter-card: 24px of padding inside a card. */
+.card > div.relative,
+.tile > div.relative {
+  padding: 24px;
+}
+
+/* Cards that navigate lift 2px; cards that do not stay flat. */
+a > .card:hover,
+.card:has(a):hover {
+  box-shadow: var(--hgt-shadow-raised);
+  transform: translateY(-2px);
+}
+
+[data-component-part="card-title"] {
+  color: var(--hgt-text-strong);
+  font-weight: 600;
+  letter-spacing: var(--hgt-tracking-heading);
+}
+
+[data-component-part="card-icon"] {
+  color: var(--hgt-charge);
+}
+
+/* Lucide at 1.75 stroke in a 20px box, outline only, in currentColor. */
+icon svg,
+.icon svg,
+[data-component-part="card-icon"] svg {
+  stroke-width: 1.75;
+}
+
+/* The AsyncAPI send/receive badge ships hardcoded green fills; the palette has
+   no green. Teal carries the badge and the Send/Receive label carries the
+   direction, so the hue is never the only signal. */
+svg [class*="fill-[#00A63E]"],
+svg [class*="fill-[#00c951]"] {
+  fill: var(--hgt-charge);
+}
+
+/* --- Callouts ------------------------------------------------------------- */
+
+/* Teal tint for informational, orange for warnings, red for faults — the same
+   direction the state tokens carry everywhere else. */
+html .callout,
+html.dark .callout {
+  border-radius: var(--hgt-radius-card);
+  border-color: var(--hgt-border-hairline);
+  border-left-width: 2px;
+}
+
+html .callout[data-callout-type="note"],
+html .callout[data-callout-type="info"],
+html .callout[data-callout-type="tip"],
+html .callout[data-callout-type="check"],
+html.dark .callout[data-callout-type="note"],
+html.dark .callout[data-callout-type="info"],
+html.dark .callout[data-callout-type="tip"],
+html.dark .callout[data-callout-type="check"] {
+  background-color: var(--hgt-surface-accent-soft);
+  border-left-color: var(--hgt-charge);
+}
+
+html .callout[data-callout-type="warning"],
+html.dark .callout[data-callout-type="warning"] {
+  background-color: var(--hgt-surface-warn-soft);
+  border-left-color: var(--hgt-discharge);
+}
+
+html .callout[data-callout-type="danger"],
+html .callout[data-callout-type="error"],
+html.dark .callout[data-callout-type="danger"],
+html.dark .callout[data-callout-type="error"] {
+  background-color: var(--hgt-surface-warn-soft);
+  border-left-color: var(--hgt-negative);
+}
+
+/* Copy inside a callout is body ink, not a tinted hue; the icon carries the
+   state colour, so it never has to be read from the text. */
+html .callout,
+html.dark .callout {
+  color: var(--hgt-text-body);
+}
+
+html .callout :is(p, span, strong, em, li, code, div),
+html.dark .callout :is(p, span, strong, em, li, code, div) {
+  color: inherit;
+}
+
+html .callout a,
+html.dark .callout a {
+  color: var(--hgt-text-accent);
+}
+
+html .callout[data-callout-type="note"] svg,
+html .callout[data-callout-type="info"] svg,
+html .callout[data-callout-type="tip"] svg,
+html .callout[data-callout-type="check"] svg,
+html.dark .callout[data-callout-type="note"] svg,
+html.dark .callout[data-callout-type="info"] svg,
+html.dark .callout[data-callout-type="tip"] svg,
+html.dark .callout[data-callout-type="check"] svg {
+  color: var(--hgt-charge);
+}
+
+html .callout[data-callout-type="warning"] svg,
+html.dark .callout[data-callout-type="warning"] svg {
+  color: var(--hgt-discharge);
+}
+
+html .callout[data-callout-type="danger"] svg,
+html .callout[data-callout-type="error"] svg,
+html.dark .callout[data-callout-type="danger"] svg,
+html.dark .callout[data-callout-type="error"] svg {
+  color: var(--hgt-negative);
+}
+
+/* --- Tables --------------------------------------------------------------- */
+
+#content-area table {
+  border-color: var(--hgt-border-hairline);
+}
+
+#content-area thead {
+  border-bottom: 1px solid var(--hgt-border-default);
+}
+
+#content-area tbody tr {
+  border-bottom: 1px solid var(--hgt-border-hairline);
+}
+
+#content-area tbody tr:hover {
+  background-color: var(--hgt-surface-sunken);
+}
+
+/* --- Code, panels, steps -------------------------------------------------- */
+
+/* Code stays on an ink surface in both themes: ink-900 on the light page, and
+   ink-800 (surface-card) in dark, where ink-900 is the page ground itself and a
+   code block on it would have no edge. The right-edge scroll fade is rebuilt
+   from the same ink so it never fades to a foreign grey. */
+.code-block,
+.code-block [class*="bg-codeblock"],
+pre.shiki {
+  border-radius: var(--hgt-radius-card);
+}
+
+.code-block {
+  border: 1px solid var(--hgt-border-hairline);
+}
+
+.code-block [class*="bg-codeblock"] {
+  background-color: var(--hgt-code-surface);
+}
+
+.code-block .code-block-fade-overlay {
+  background-color: transparent;
+  background-image: linear-gradient(
+    to right,
+    rgba(var(--hgt-code-surface-rgb), 0) 0px,
+    rgba(var(--hgt-code-surface-rgb), 0.2) 10px,
+    rgba(var(--hgt-code-surface-rgb), 1) 32px
+  );
+}
+
+accordion,
+expandable,
+field {
+  border-color: var(--hgt-border-hairline);
+  border-radius: var(--hgt-radius-control);
+}
+
+steps step {
+  border-color: var(--hgt-border-hairline);
+}
+
+/* Nested panels take the sunken tone with no shadow. */
+#request-example,
+#response-example {
+  background-color: var(--hgt-surface-sunken);
+  border: 1px solid var(--hgt-border-hairline);
+  border-radius: var(--hgt-radius-card);
+  box-shadow: none;
+}

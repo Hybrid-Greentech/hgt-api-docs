@@ -14,9 +14,9 @@
 ## Terminology
 
 - "HGT" / "Hybrid Greentech" — the platform; "HGT platform" for the whole system.
-- "DER" (Distributed Energy Resource) — an EV charger or heat pump integrating directly; keep distinct from "asset", the general term for anything dispatched (BESS, PV, DER, or delegated-operator-controlled equipment).
+- "DER" (Distributed Energy Resource) — equipment integrating directly on the resource API: EV charger, heat pump, battery, CHP, P2X, PV, or `misc`; keep distinct from "asset", the term for anything dispatched under delegated or direct control. One physical battery or PV array is a resource or an asset depending on who closes its control loop.
 - "Delegated Operator" — a third party dispatching assets on HGT's behalf; not "aggregator" or "operator" alone.
-- "Resource" — the EV-charger/heat-pump term for a registered device (`resourceId`); use "asset" (`assetId`) for delegated-operator and REST contexts. Don't mix the two within one API's docs.
+- "Resource" — the DER term for a registered device (`resourceId`); use "asset" (`assetId`) for delegated-operator and REST contexts. Don't mix the two within one API's docs.
 - "Activation" — a real-time dispatch command; "task" — a planned/scheduled dispatch window (delegated operators only). Don't use interchangeably.
 
 ## Style preferences
@@ -41,6 +41,20 @@ Schema and field descriptions in `api-reference/asyncapi/` follow the Stripe API
 - Put enumerated and literal values in backticks: "Always `ACTIVE`."
 - Don't sell, hedge, or explain platform internals. Say what the value is and what the integrator does with it.
 - Second person belongs in the MDX guides, which describe flow and policy. The reference describes data.
+
+## Design system
+
+The site runs on the Hybrid Greentech design system. Read `skill://hybrid-greentech-design` before touching appearance.
+
+- `docs.json` holds what Mintlify configures natively: brand colours, DM Sans (Regular 400), the Lucide icon library, ink code blocks.
+- `hgt-design.css` is the token layer — every colour, size, radius, shadow and duration is a `--hgt-*` variable taken from the system. Never introduce a value that is not in the system; use the nearest token.
+- `style.css` holds only the AsyncAPI pill relabelling and its brand recolour.
+- Dark theme is a token override on `html.dark`. Never fork a rule per theme where a token can carry it.
+- Teal is charge, orange is discharge. Both are directional signals, never decoration, and never a call to action.
+- Icons are Lucide, outline only, 1.75 stroke, from the system's glyph vocabulary (`zap`, `plug-zap`, `gauge`, `arrow-right-left`, …). No emoji.
+- Brand assets are real files, never approximations: `logo/light.png` (ink lockup), `logo/dark.png` (white lockup), `favicon.png` / `favicon-dark.png` (the mark alone, cropped from the lockup).
+- DM Sans stands in for the design system's licensed PP Neue Montreal, whose licence doesn't cover this surface. Regular 400, Semibold 600 and Italic 400 only — never a light or a black.
+- Numbers, prices, timestamps, IDs and units set in IBM Plex Mono with tabular figures. Both families load from Google Fonts in one `@import` at the top of `hgt-design.css`.
 
 ## Content boundaries
 

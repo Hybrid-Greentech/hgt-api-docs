@@ -27,7 +27,7 @@ Data frequency is the maximum gap between consecutive samples of the same metric
 
 Publish a sample on every interval, including when the value has not changed. The platform treats a gap in the stream as a fault, not as an unchanged value.
 
-Every metric is also **change-driven**: publish immediately when a value moves materially, without waiting for the next interval. The per-metric threshold for a material change is not yet published, so data frequency is the binding requirement until it is.
+Every metric is also **change-driven**: publish immediately when a value crosses its change threshold, without waiting for the next interval. On resources the threshold is ±1 kW on the power metrics — see [Metrics](/data-standards/metrics#distributed-energy-resources). For assets no per-metric threshold is published, so data frequency is the binding requirement until one is.
 
 ### Roundtrip asset response
 
@@ -35,7 +35,7 @@ Roundtrip asset response is the time from the platform publishing an activation 
 
 The bound covers command delivery and the **start** of the response. It does not require the ramp to be complete. An asset that begins responding within the bound and reaches the target over the following seconds meets this requirement. Ramp completion belongs to the TSO's activation profile, below.
 
-There is no acknowledgement message. The platform detects the response in the measurement stream you already publish.
+Assets send no acknowledgement message. The platform detects the response in the measurement stream you already publish. Resources acknowledge every activation, and the acknowledgement carries a reason for non-response that a measurement stream cannot express.
 
 The bound applies only under platform control. Under local control the platform sends no setpoint, so there is nothing to measure from — see [Control topology](/data-standards/overview#control-topology).
 
