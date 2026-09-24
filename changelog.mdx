@@ -21,6 +21,17 @@ Entries are tagged by system.
 | `feature` | New capability added |
 | `fix` | Correction to existing behaviour |
 
+<Update label="September 24, 2026" tags={["distributed-resources", "delegated-operators", "fix"]}>
+  ## Delivery lag, integration test, and stale acknowledgements corrected
+
+  Documentation corrections. No topic, payload shape, or enum has changed.
+
+  - **Delivery lag is measured on the platform's clock.** It is the platform's own receipt timestamp minus the sampling timestamp: `assetTimestamp` on an asset, `resourceTimestamp` on a resource. The docs previously gave it as `serverTimestamp` minus the sampling timestamp. When the sampling timestamp is `null`, `serverTimestamp` takes its place. See [Timestamps](/data-standards/compliance#timestamps).
+  - **The sandbox check before go-live is an integration test**, not a prequalification. It applies to Delegated Operators and Distributed Energy Resources integrations alike. Prequalification refers only to market prequalification. See [Integration test](/data-standards/compliance#integration-test).
+  - **A resource does not acknowledge a stale activation.** A resource that discards an activation as stale sends no acknowledgement for it. Acknowledge every other activation as before.
+  - **PV `measuredPower` is AC production at the inverter output**, whether the power reaches the grid or is consumed on site.
+</Update>
+
 <Update label="September 15, 2026" tags={["distributed-resources", "ev-chargers", "heat-pumps", "feature", "deprecation", "breaking-change"]}>
   ## One resource API for EV chargers, heat pumps, batteries, and PV
 
