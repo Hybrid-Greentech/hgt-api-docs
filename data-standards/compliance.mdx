@@ -5,32 +5,40 @@ description: How the platform assesses bounds, and the integrity, clock, and tra
 
 ## Bound assessment
 
-The platform assesses compliance per asset and per metric over a rolling one-hour window. Both of the following must hold for every bound on [Market requirements](/data-standards/markets):
+The platform assesses compliance per asset or resource, and per metric, over a rolling one-hour window. Both of the following must hold for every bound on [Market requirements](/data-standards/markets):
 
 - At least **99%** of intervals are within the bound.
 - **No single gap** exceeds **10 times** the bound.
 
 The percentile absorbs ordinary jitter and retransmission; the maximum gap catches a silence short enough to hide inside it.
 
-The same pair applies to delivery lag. For roundtrip response, at least 99% of activations in the window must be answered within the bound.
+The same pair applies to delivery lag. For roundtrip response, at least 99% of activations in the window must show a response within the bound.
 
 ### Events
 
-Report alarms, faults, and non-operational states on the events channel, classified by `domain` and `severity`:
+Report alarms, faults, and non-operational states on the events channel rather than going silent. The platform cannot distinguish a silent gap from an asset or resource that stopped reporting.
+
+Assets report on the Delegated Operators events channel, classified by `domain` and `severity`:
 
 ```
 {priceZone}/{customerName}/events/{assetId}
 ```
 
-Report a communication failure or an asset that has gone non-operational rather than going silent. The platform cannot distinguish a silent gap from an asset that stopped reporting.
-
 Task lifecycle does not belong on this channel. Publish `STARTED`, `COMPLETED`, `FAILED`, `INVALID`, and `UNAUTHORISED` as task events instead. See [Events](/delegated-operators/operational-flow#events) for both payloads.
 
-### Prequalification
+Resources report on their own events channel, classified by `eventKind`, `resourceState`, and `severity`:
 
-Before go-live, an asset must meet the requirements for its markets for **24 continuous hours** in the sandbox environment.
+```
+{priceZone}/{customerName}/v2/events/{resourceId}
+```
 
-An existing integration takes on any newly added obligation at its next prequalification, and stays compliant under the previous requirements until then.
+Publishing the transition to `Unavailable` is mandatory. Resources have no heartbeat message, so the connection's Last Will and Testament carries the transition when the link drops. Set the will on this topic as a `Status` event with `resourceState` `Unavailable` and `resourceTimestamp` `null`. See the [DER Quickstart](/distributed-resources/quickstart) for the payload.
+
+### Integration test
+
+Before going live in production, every asset and resource must meet the requirements for its markets for **24 continuous hours** in the sandbox environment. The test applies to Delegated Operators and Distributed Energy Resources integrations alike.
+
+An existing integration takes on any newly added obligation at its next market prequalification, and stays compliant under the previous requirements until then.
 
 ---
 
@@ -40,59 +48,80 @@ Publish sampled values, never derived ones. Do not:
 
 - **Average, smooth, or decimate.** If the on-site value changes faster than the data frequency, publish the change. Do not publish a rolling mean in place of samples.
 - **Interpolate.** Do not generate intermediate values between samples.
-- **Re-stamp a cached reading.** Do not apply a new `assetTimestamp` to a value the site sampled earlier.
+- **Re-stamp a cached reading.** Do not apply a new `assetTimestamp` or `resourceTimestamp` to a value the site sampled earlier.
 
 <Warning>
-  A re-stamped cached value is indistinguishable from a real sample at the integration boundary, so the platform does not detect it in the stream. Hybrid Greentech verifies value integrity at prequalification and during incident investigation.
+  A re-stamped cached value is indistinguishable from a real sample at the integration boundary, so the platform does not detect it in the stream. Hybrid Greentech verifies value integrity during the integration test and during incident investigation.
 </Warning>
 
 ---
 
 ## Timestamps
 
-Every measurement message carries two timestamps:
+Every measurement message carries a sampling timestamp and `serverTimestamp`. The platform adds a third, its own receipt timestamp, when the message arrives.
 
-| Field | Description |
-|-------|-------------|
-| `assetTimestamp` | When the asset sampled the value |
-| `serverTimestamp` | When your platform received the message |
+| Field | API | Description |
+|-------|-----|-------------|
+| `assetTimestamp` | Delegated Operators | Time at which the asset sampled the value. Expressed as an integer number of milliseconds since the Unix epoch. `null` when the equipment has no clock the integrator trusts. |
+| `resourceTimestamp` | Distributed Energy Resources | Time at which the resource sampled the value. Expressed as an integer number of milliseconds since the Unix epoch. `null` when the equipment has no clock the integrator trusts. |
+| `serverTimestamp` | Both | Time at which the integrator's platform received the message or composed it for publication. Expressed as an integer number of milliseconds since the Unix epoch. Set by the integrator's clock, not the platform's. |
 
-The platform assesses data frequency on the gap between consecutive `assetTimestamp` values, and delivery lag as `serverTimestamp − assetTimestamp`. It assesses each separately.
+The platform assesses each message against its own receipt timestamp, using the sampling timestamp whenever one is present:
+
+- **Delivery lag** is the platform's receipt timestamp minus the sampling timestamp.
+- **Data frequency** is the gap between consecutive sampling timestamps for the same metric.
+
+When the sampling timestamp is `null`, `serverTimestamp` takes its place in both. Delivery lag then covers only the hops after your platform, and the site-to-platform hop goes unmeasured. Supply the sampling timestamp whenever the equipment has a clock you trust.
 
 ## Clocks
 
-Your clock sets `assetTimestamp` and your platform sets `serverTimestamp`, so clock offset counts toward delivery lag.
+Your clock sets the sampling timestamp and `serverTimestamp`, and the platform's clock sets the receipt timestamp, so clock offset counts toward delivery lag.
 
 | Requirement | Value |
 |-------------|-------|
 | Time source | NTP or better, within 50 ms of UTC |
 | Correction method | Slew, never step |
-| `assetTimestamp` ordering | Strictly increasing per asset and metric |
+| `assetTimestamp` and `resourceTimestamp` ordering | Strictly increasing per asset or resource, and per metric |
 
-An `assetTimestamp` later than its `serverTimestamp` indicates a clock fault on site.
+A sampling timestamp later than its `serverTimestamp`, or either one later than the platform's receipt timestamp, indicates a clock fault on your side.
 
 ---
 
 ## Transport
 
+Asset channels, on the Delegated Operators API:
+
 | Channel | Direction | QoS |
 |---------|-----------|-----|
-| `measurements` | Operator to platform | 0 |
-| `events` | Operator to platform | 1 |
-| `tasks/events` | Operator to platform | 1 |
-| `tasks` | Platform to operator | 1 |
-| `activation` | Platform to operator | 1 |
+| `measurements` | Delegated Operator to platform | 0 |
+| `events` | Delegated Operator to platform | 1 |
+| `tasks/events` | Delegated Operator to platform | 1 |
+| `tasks` | Platform to Delegated Operator | 1 |
+| `activation` | Platform to Delegated Operator | 1 |
 
-Measurements use QoS 0 because a sample redelivered by a broker retry has already breached its delivery lag and cannot be used for control or settlement. Events and task events are low-rate and individually meaningful, so the platform delivers them at least once.
+Resource channels, on the Distributed Energy Resources API:
 
-The `measurements` channel has two additional requirements:
+| Channel | Direction | QoS |
+|---------|-----------|-----|
+| `register` | Resource to platform | 1 |
+| `update` | Resource to platform | 1 |
+| `measurements` | Resource to platform | 0 |
+| `events` | Resource to platform | 1 |
+| `activation` | Platform to resource | 1 |
+| `acknowledgement` | Resource to platform | 1 |
 
-- **Do not publish retained messages.** A retained power value appears live to any new subscriber.
-- **Use a clean session.** A reconnecting site must not deliver a backlog of samples that are already outside the delivery lag bound.
+Measurements use QoS 0 because a sample redelivered by a broker retry has already breached its delivery lag and cannot be used for control or settlement. Every other channel is low-rate and individually meaningful, so it uses QoS 1, which delivers each message at least once.
+
+The `measurements` channel on both surfaces has two additional requirements:
+
+- **Do not publish retained messages.** A retained power value appears live to any new subscriber. On the Distributed Energy Resources API no channel is retained, the Last Will and Testament included.
+- **Use a clean session.** A reconnecting site or resource must not deliver a backlog of samples that are already outside the delivery lag bound.
 
 ### Stale activations
 
-Activations are delivered at QoS 1, so after a reconnection the broker can deliver a setpoint that is several seconds old. Discard an activation if either of the following is true:
+Activations are delivered at QoS 1, so after a reconnection the broker can deliver a setpoint that is already stale. Discard an activation if either of the following is true:
 
-- Its `timestamp` is older on receipt than the roundtrip bound for the asset's market.
-- A newer activation for the same task has already been applied.
+- Its timestamp is older on receipt than the roundtrip bound for the market: `timestamp` on an asset activation, `serverTimestamp` on a resource activation.
+- A newer activation has already been applied: for the same task on an asset, or for the same resource on a resource.
+
+Do not acknowledge a discarded resource activation. By the time the acknowledgement would arrive, the platform has already discarded the activation on its side.

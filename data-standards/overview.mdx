@@ -5,18 +5,18 @@ description: How telemetry and response requirements are determined for every as
 
 ## Scope
 
-These pages define what you publish, how often you publish it, and how quickly an asset must answer a dispatch. If another page or diagram states a different value, use the value here.
+These pages define what you publish, how often you publish it, and how quickly an asset or resource must respond to a dispatch. If another page or diagram states a different value, use the value here.
 
 The requirements cover every integration surface:
 
 | Integration | What these pages govern |
 |-------------|-------------------------|
 | Delegated Operators API | All metrics, bounds, and compliance rules |
-|  | All metrics, bounds, and compliance rules |
+| Distributed Energy Resources API | All metrics, bounds, and compliance rules |
 | EV charger and heat pump v1 APIs | Bounds and compliance rules, applied to the metrics those deprecated APIs already carry |
 | Direct PPC and OEM hardware | Bounds, applied over the registers in the [Signal List](/controller/signal-list) |
 
-You are responsible for meeting these requirements. Hybrid Greentech verifies them at prequalification and when investigating an operational incident. The platform does not publish a compliance feed, so the absence of a warning is not confirmation that an integration is compliant.
+You are responsible for meeting these requirements. Hybrid Greentech verifies them in the sandbox [integration test](/data-standards/compliance#integration-test) and when investigating an operational incident. The platform does not publish a compliance feed, so the absence of a warning is not confirmation that an integration is compliant.
 
 ---
 
@@ -27,20 +27,20 @@ Two keys determine every requirement, and they compose. Neither one alone tells 
 | Key | Determines | Defined in |
 |-----|------------|------------|
 | Device type, or resource type | **Which** metrics you publish | [Metrics](/data-standards/metrics) |
-| Market | **How fast** those metrics flow, and how fast the asset answers | [Market requirements](/data-standards/markets) |
+| Market | **How fast** those metrics flow, and how fast the asset or resource responds | [Market requirements](/data-standards/markets) |
 
-A battery and a heat pump publish different metrics. The same battery delivering FFR and delivering mFRR publishes the same metrics at very different rates.
+A battery and a heat pump publish different metrics. The same battery publishes the same metrics every 100 ms when delivering FFR and every minute when delivering mFRR.
 
 ### Requirement resolution
 
-An asset's bounds come from the **strictest market it is prequalified for**. They do not change when a task starts or ends. Data frequency lives in edge configuration, so an asset that sells FCR-D in the morning and mFRR in the afternoon holds the FCR-D data frequency all day.
+Bounds come from the **strictest market an asset or resource is prequalified for**. They do not change when a task starts or ends. Data frequency lives in edge configuration, so an asset that sells FCR-D in the morning and mFRR in the afternoon holds the FCR-D data frequency all day.
 
 Two consequences:
 
 - You configure the integration once, against a known set of markets.
 - Compliance windows never straddle a change in data frequency, so every window is assessable.
 
-An asset that is not prequalified for any ancillary market can serve `wholesale` only, and takes the `wholesale` bounds.
+An asset or resource that is not prequalified for any ancillary market can serve `wholesale` only, and takes the `wholesale` bounds.
 
 <Note>
   These requirements replace the earlier device-type-keyed rates. Any page that ties a data frequency or a response bound to asset class rather than to market is superseded.
@@ -70,7 +70,7 @@ For assets integrated through the Delegated Operators API:
 
 Frequency-responsive markets under platform control require Hybrid Greentech's own frequency measurement and setpoint computation on site. A sub-second response cannot be closed over a cloud roundtrip.
 
-Resources are always under platform control. The platform issues them setpoints directly, with no task layer, so the roundtrip bound always applies. A resource additionally acknowledges every activation, which separates a refusal to actuate from a lost link — see [Compliance](/data-standards/compliance#transport).
+Resources are always under platform control. The platform issues them setpoints directly, with no task layer, so the roundtrip bound always applies. A resource additionally acknowledges every activation it does not discard as stale, which separates a refusal to actuate from a lost link — see [Compliance](/data-standards/compliance#transport).
 
 ---
 
@@ -80,10 +80,11 @@ Some requirements on these pages are new or tighter than what your integration w
 
 - Available power up and down are now required for every device type on the Delegated Operators API, not for batteries alone.
 - Available energy up and down are now required for batteries.
-- State of charge tightens to a shorter bound — see [Metrics](/data-standards/metrics).
+- State of charge tightens from a 5 s to a 1 s bound.
 - Grid frequency is mandatory, not optional, for the frequency-responsive markets.
+- Resources moving from the v1 EV charger and heat pump APIs take on the v2 metric set. Heat pumps publish `measuredPower` for the first time, EV active power changes sign, and heat pump `availablePowerDown` is recomputed. See [Migrating to v2](/distributed-resources/migration).
 
-Existing integrations remain compliant until their next prequalification. New integrations meet these requirements from day one.
+Existing integrations remain compliant until their next market prequalification. New integrations meet these requirements from day one.
 
 ---
 
@@ -97,6 +98,6 @@ Existing integrations remain compliant until their next prequalification. New in
     What each device type and resource type publishes, with types, units, and baseline rules.
   </Card>
   <Card title="Compliance" icon="clipboard-check" href="/data-standards/compliance">
-    How bounds are assessed, value integrity, clocks, transport, and prequalification.
+    How bounds are assessed, value integrity, clocks, transport, and the sandbox integration test.
   </Card>
 </CardGroup>

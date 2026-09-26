@@ -111,7 +111,7 @@ Document your estimation method during onboarding. The platform cannot audit an 
 
 ## Distributed energy resources
 
-Resources publish a registry of six metrics on the `measurements` channel, keyed on **resource type**. Every metric carries one `measurementType` and one `value` per message.
+Resources publish six metrics on the `measurements` channel, keyed on **resource type**. Every metric carries one `measurementType` and one `value` per message.
 
 | Metric | `measurementType` | Type | Unit | Periodic bound | Change threshold |
 |--------|-------------------|------|------|----------------|------------------|
@@ -131,7 +131,7 @@ The obligation is additive:
 
 The change threshold is an absolute ±1 kW, with no percentage floor. It obliges an **additional** immediate sample and does not reset the interval: a sample is still due at the periodic bound even when the value has not moved.
 
-`measuredPower` is signed on the generator convention — export positive, import negative — and is mandatory for every resource type. Available power is headroom from the current operating point, so a setpoint is only interpretable against a measured position.
+`measuredPower` is signed on the generator convention — export positive, import negative — and is mandatory for every resource type. Available power is headroom from the current operating point, so a setpoint is only interpretable against a measured position. On a `pv` resource, `measuredPower` is AC production at the inverter output, whether that power reaches the grid or is consumed on site.
 
 Available power is the only dispatch limit the platform reads, so site constraints belong inside it. Where the metered connection point, a site controller, or other equipment behind the same meter caps what a resource may import or export, publish available power net of that cap. The platform holds no site-meter reading of its own and does not track which resources share a site, so headroom that ignores the connection point is headroom it will dispatch into.
 
@@ -145,16 +145,16 @@ Resources on the deprecated v1 EV charger and heat pump APIs keep the metrics th
 
 ## Message volume
 
-For a battery, with every metric at its bound:
+For a battery, with every metric at its periodic bound and no change-driven samples:
 
 | Prequalified for | Messages per second per asset |
 |------------------|-------------------------------|
-| `ffr` | ~43 |
+| `ffr` | 43 |
 | `afrr` | 7 |
-| `mfrr` | ~3.1 |
-| `wholesale` | ~3.1 |
+| `mfrr` | 3.07 |
+| `wholesale` | 3.05 |
 
-Available energy and state of charge are market-independent, so about 3 messages per second is the floor for a battery regardless of what it sells. The saving from a slow market comes from active power, available power, and the baseline, which follow the market data frequency.
+Available energy and state of charge are market-independent, so 3 messages per second is the floor for a battery regardless of what it sells. The saving from a slow market comes from active power, available power, and the baseline, which follow the market data frequency.
 
 ---
 

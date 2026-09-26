@@ -813,11 +813,13 @@ Activations are delivered at QoS 1, so a reconnection can deliver a command that
 - Its `serverTimestamp` is older on receipt than the roundtrip bound for the resource's market.
 - A newer activation for the same resource has already been applied.
 
+Do not acknowledge a discarded activation. By the time the acknowledgement would arrive, the platform has already discarded the activation on its side.
+
 ---
 
 ## Step 5 — Acknowledge activations
 
-Every activation is acknowledged, for every resource type.
+Acknowledge every activation you do not discard as stale, for every resource type.
 
 **Topic:** `{priceZone}/{customerName}/v2/acknowledgement/{resourceId}`
 

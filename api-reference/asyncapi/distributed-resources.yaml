@@ -144,7 +144,8 @@ channels:
       The resource's answer to a single activation. Mandatory for every resource
       type, including types whose response is also visible in the measurement
       stream: an acknowledgement carries a reason for non-response, which a stream
-      of power values cannot express.
+      of power values cannot express. Not sent for an activation the resource
+      discards as stale.
     parameters:
       priceZone:
         $ref: '#/components/parameters/priceZone'
@@ -220,8 +221,9 @@ operations:
       Delivered at QoS 1, so a redelivery after a reconnection can carry a command
       that is already stale. Discard an activation whose `serverTimestamp` is older
       on receipt than the roundtrip bound for the resource's market, and any
-      activation superseded by one the resource has already applied. Answer every
-      activation on the acknowledgement channel.
+      activation superseded by one the resource has already applied. A discarded
+      activation takes no acknowledgement. Answer every other activation on the
+      acknowledgement channel.
     action: receive
     channel:
       $ref: '#/channels/ResourceActivations'
@@ -332,7 +334,9 @@ components:
         `kW`. Signed, following the generator convention where export is positive
         and import is negative. Mandatory for every resource type. A setpoint is
         only interpretable against a measured position, and available power is
-        headroom from that position.
+        headroom from that position. On a `pv` resource, the value is AC
+        production at the inverter output, whether the power reaches the grid or
+        is consumed on site.
 
         - `availablePowerUp` — additional power the resource can still deliver
         upward, in `kW`. An unsigned magnitude measured from the current operating
